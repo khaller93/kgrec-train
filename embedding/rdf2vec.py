@@ -33,6 +33,6 @@ def train(epochs: int, walks: int, path_length: int, seed: int,
 
     embeddings, _ = transformer.fit_transform(kg, ent['iri'].values.tolist())
     model_file = path.join(model_out_directory,
-                           get_model_name(10, walks, path_length, seed))
+                           get_model_name(epochs, walks, path_length, seed))
     pd.DataFrame(embeddings).to_csv(model_file, index=False,
                                     sep='\t', header=False)
