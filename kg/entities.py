@@ -4,6 +4,8 @@ import pandas as pd
 from os import mkdir
 from SPARQLWrapper import SPARQLWrapper, JSON
 
+from datasets import Dataset
+
 _load_sparql_limit = 500
 
 _entities_sparql_query = """
@@ -54,11 +56,12 @@ def read_entities_from_file(entities_file: str) -> pd.DataFrame:
     return df
 
 
-def get_entities(sparql_endpoint: str, model_out_dir: str) -> pd.DataFrame:
-    entities_file_path = path.join(model_out_dir, 'entities.tsv')
+def get_entities(dataset: Dataset, model_out_dir: str) -> pd.DataFrame:
+    entities_file_path = path.join(model_out_dir, dataset.name.lower(),
+                                   'entities.tsv')
     if path.exists(entities_file_path) and path.isfile(entities_file_path):
         return read_entities_from_file(entities_file_path)
     else:
-        entities = gather_entities_from_sparql_endpoint(sparql_endpoint)
+        entities = gather_entities_from_sparql_endpoint(dataset.sparql_endpoint)
         _write_entities_to_file(entities, entities_file_path)
         return entities
