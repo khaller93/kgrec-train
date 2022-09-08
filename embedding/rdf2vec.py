@@ -2,6 +2,8 @@ import os.path as path
 import pandas as pd
 
 from multiprocessing import cpu_count
+
+from datasets import Dataset
 from kg import entities
 from pyrdf2vec.graphs import KG
 from pyrdf2vec import RDF2VecTransformer
@@ -14,10 +16,10 @@ def get_model_name(epochs: int, walks: int, path_length: int, seed: int):
 
 
 def train(epochs: int, walks: int, path_length: int, seed: int,
-          sparql_endpoint: str, model_out_directory: str):
-    ent = entities.get_entities(sparql_endpoint, model_out_directory)
+          model_out_directory: str, dataset: Dataset):
+    ent = entities.get_entities(dataset.sparql_endpoint, model_out_directory)
     kg = KG(
-        sparql_endpoint,
+        dataset.sparql_endpoint,
         skip_predicates={'www.w3.org/1999/02/22-rdf-syntax-ns#type'},
         literals=[],
         skip_verify=True,
