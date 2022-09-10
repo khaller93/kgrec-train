@@ -7,7 +7,7 @@ class Dataset(Enum):
     @property
     def sparql_endpoint(self):
         if self == Dataset.Pokemon:
-            return 'http://localhost:7270/repositories/pokemon'
+            return 'http://localhost:8870/sparql/'
         else:
             raise ValueError('no sparql endpoint known for %s' % self.name)
 

@@ -9,11 +9,14 @@ from datasets import Dataset
 _load_sparql_limit = 500
 
 _entities_sparql_query = """
-SELECT DISTINCT ?s WHERE {
-    {?s ?p ?o} UNION {?u ?b ?s}
-    FILTER(isIRI(?s))
+SELECT ?s WHERE {
+    {
+        SELECT DISTINCT ?s WHERE {
+            {?s ?p ?o} UNION {?u ?b ?s}
+            FILTER(isIRI(?s))   
+        } ORDER BY ASC(?s)
+    }
 }
-ORDER BY ASC(?s)
 OFFSET %d
 LIMIT %d
 """
@@ -25,10 +28,9 @@ def gather_entities_from_sparql_endpoint(sparql_endpoint: str) -> pd.DataFrame:
     )
     sparql.setReturnFormat(JSON)
 
-    not_all = True
     offset = 0
     values = []
-    while not_all:
+    while True:
         sparql.setQuery(_entities_sparql_query % (offset, _load_sparql_limit))
         ret = sparql.queryAndConvert()
 
@@ -40,7 +42,8 @@ def gather_entities_from_sparql_endpoint(sparql_endpoint: str) -> pd.DataFrame:
         if n == _load_sparql_limit:
             offset += _load_sparql_limit
         else:
-            not_all = False
+            break
+
     return pd.DataFrame(values, columns=['iri'])
 
 
