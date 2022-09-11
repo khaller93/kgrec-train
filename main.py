@@ -1,5 +1,5 @@
 import typer
-from embedding import rdf2vec
+from embedding import rdf2vec, transe
 from datasets import parse
 
 main = typer.Typer()
@@ -9,13 +9,23 @@ main = typer.Typer()
 def rdf2vec_cmd(epochs: int = 10, walks: int = 200, path_length: int = 4,
                 seed: int = 133, model_out_directory: str = 'model',
                 dataset: str = 'pokemon'):
-    rdf2vec.train(epochs, walks, path_length, seed, model_out_directory,
-                  parse(dataset))
+    rdf2vec.train(parse(dataset), model_out_directory, epochs, walks,
+                  path_length, seed)
 
 
-@main.command(name='transE')
-def trans_e_cmd():
-    print('train transE model')
+@main.command(name='transe')
+def trans_e_cmd(k: int = 64, epochs: int = 10, batch_size: int = 256,
+                seed: int = 133, model_out_directory: str = 'model',
+                dataset: str = 'pokemon'):
+    transe.train(parse(dataset), model_out_directory, k, epochs, batch_size,
+                 seed)
+
+
+@main.command(name='transe-hpo')
+def trans_e_cmd(trials: int = 10, model_out_directory: str = 'model',
+                dataset: str = 'pokemon', seed: int = 133):
+    transe.train_hpo(parse(dataset), model_out_directory, trials=trials,
+                     seed=seed)
 
 
 if __name__ == '__main__':
