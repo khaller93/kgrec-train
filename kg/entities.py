@@ -22,9 +22,10 @@ LIMIT %d
 """
 
 
-def gather_entities_from_sparql_endpoint(sparql_endpoint: str) -> pd.DataFrame:
+def gather_entities_from_sparql_endpoint(dataset: Dataset) -> pd.DataFrame:
     sparql = SPARQLWrapper(
-        sparql_endpoint
+        endpoint=dataset.sparql_endpoint,
+        defaultGraph=dataset.default_named_graph,
     )
     sparql.setReturnFormat(JSON)
 
@@ -65,6 +66,6 @@ def get_entities(dataset: Dataset, model_out_dir: str) -> pd.DataFrame:
     if path.exists(entities_file_path) and path.isfile(entities_file_path):
         return read_entities_from_file(entities_file_path)
     else:
-        entities = gather_entities_from_sparql_endpoint(dataset.sparql_endpoint)
+        entities = gather_entities_from_sparql_endpoint(dataset)
         _write_entities_to_file(entities, entities_file_path)
         return entities

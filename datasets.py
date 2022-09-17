@@ -7,9 +7,16 @@ class Dataset(Enum):
     @property
     def sparql_endpoint(self):
         if self == Dataset.Pokemon:
-            return 'http://localhost:8870/sparql/'
+            return 'https://pokemonkg.kevinhaller.dev/sparql/query'
         else:
             raise ValueError('no sparql endpoint known for %s' % self.name)
+
+    @property
+    def default_named_graph(self):
+        if self == Dataset.Pokemon:
+            return 'https://pokemonkg.org/'
+        else:
+            return None
 
 
 def parse(dataset: str) -> Dataset:

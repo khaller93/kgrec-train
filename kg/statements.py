@@ -1,5 +1,7 @@
 from SPARQLWrapper import SPARQLWrapper, JSON
 
+from datasets import Dataset
+
 _load_sparql_limit = 500
 
 _statements_blank_node_sparql = """
@@ -19,9 +21,10 @@ LIMIT %d
 """
 
 
-def collect_statements(sparql_endpoint: str) -> [[str, str, str]]:
+def collect_statements(dataset: Dataset) -> [[str, str, str]]:
     sparql = SPARQLWrapper(
-        sparql_endpoint
+        endpoint=dataset.sparql_endpoint,
+        defaultGraph=dataset.default_named_graph,
     )
     sparql.setReturnFormat(JSON)
 
