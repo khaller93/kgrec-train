@@ -5,17 +5,17 @@ from os import makedirs
 from SPARQLWrapper import SPARQLWrapper, JSON
 
 from datasets import Dataset
+from kg.utils import create_ns_filter
 
 _load_sparql_limit = 500
 
 _entities_sparql_query = """
-SELECT ?s WHERE {
-    {
-        SELECT DISTINCT ?s WHERE {
-            {?s ?p ?o} UNION {?u ?b ?s}
-            FILTER(isIRI(?s))   
-        } ORDER BY ASC(?s)
+SELECT DISTINCT ?s WHERE {
+    Graph ?g {
+        {?s ?p ?o} UNION {?u ?b ?s}
+        FILTER(isIRI(?s))
     }
+    %s
 }
 OFFSET %d
 LIMIT %d
@@ -25,14 +25,16 @@ LIMIT %d
 def gather_entities_from_sparql_endpoint(dataset: Dataset) -> pd.DataFrame:
     sparql = SPARQLWrapper(
         endpoint=dataset.sparql_endpoint,
-        defaultGraph=dataset.default_named_graph,
+        defaultGraph=dataset.default_graph,
     )
     sparql.setReturnFormat(JSON)
 
     offset = 0
     values = []
+    ignore_ns = dataset.ignore_named_graphs
     while True:
-        sparql.setQuery(_entities_sparql_query % (offset, _load_sparql_limit))
+        sparql.setQuery(_entities_sparql_query % (create_ns_filter(ignore_ns),
+                                                  offset, _load_sparql_limit))
         ret = sparql.queryAndConvert()
 
         n = 0

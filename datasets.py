@@ -12,9 +12,15 @@ class Dataset(Enum):
             raise ValueError('no sparql endpoint known for %s' % self.name)
 
     @property
-    def default_named_graph(self):
+    def default_graph(self):
+        return None
+
+    @property
+    def ignore_named_graphs(self):
         if self == Dataset.Pokemon:
-            return 'https://pokemonkg.org/'
+            return ['http://www.openlinksw.com/schemas/virtrdf#',
+                    'http://localhost:8890/sparql',
+                    'http://localhost:8890/DAV/']
         else:
             return None
 

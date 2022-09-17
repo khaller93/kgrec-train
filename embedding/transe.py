@@ -19,7 +19,7 @@ def get_model_name(k: int, epochs: int, batch_size: int, seed: int):
 
 def train(dataset: Dataset, model_out_directory: str, k: int, epochs: int,
           batch_size: int, seed: int):
-    kg = np.array(collect_statements(dataset.sparql_endpoint), dtype=str)
+    kg = np.array(collect_statements(dataset), dtype=str)
     kg = TriplesFactory.from_labeled_triples(triples=kg,
                                              create_inverse_triples=False)
 
@@ -52,7 +52,7 @@ def train(dataset: Dataset, model_out_directory: str, k: int, epochs: int,
 
 def train_hpo(dataset: Dataset, model_out_directory: str, trials: int,
               seed: int):
-    kg = np.array(collect_statements(dataset.sparql_endpoint), dtype=str)
+    kg = np.array(collect_statements(dataset), dtype=str)
     kg = TriplesFactory.from_labeled_triples(triples=kg,
                                              create_inverse_triples=False)
 
