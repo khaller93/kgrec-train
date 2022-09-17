@@ -1,7 +1,7 @@
 import os.path as path
 import pandas as pd
 
-from os import mkdir
+from os import makedirs
 from SPARQLWrapper import SPARQLWrapper, JSON
 
 from datasets import Dataset
@@ -51,7 +51,7 @@ def gather_entities_from_sparql_endpoint(dataset: Dataset) -> pd.DataFrame:
 def _write_entities_to_file(entities: pd.DataFrame, entities_file: str):
     d = path.dirname(entities_file)
     if not path.exists(d) or not path.isdir(d):
-        mkdir(d)
+        makedirs(d)
     entities.to_csv(entities_file, sep='\t')
 
 
