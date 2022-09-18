@@ -9,3 +9,4 @@ sparqlwrapper>=2.0.0
 pykeen>=1.9.0
 numpy>=1.23.3
 typer>=0.6.1
+progressbar2>=4.0.0
