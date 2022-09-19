@@ -13,8 +13,15 @@ from kg.entities import get_entities
 from kg.statements import collect_statements
 
 
-def get_model_name(k: int, epochs: int, batch_size: int, seed: int):
-    return 'transE_k%d_e%d_bs%d_s%d.tsv' % (k, epochs, batch_size, seed)
+def get_model_name(k: int, scoring_fct_norm: int,
+                   epochs: int, batch_size: int, loss_margin: float,
+                   num_negs_per_pos: int, seed: int):
+    lm_str = str(loss_margin).replace('.', '_')
+    return 'transE_k%d_sc%d_e%d_bs%d_lm%s_np%s_s%d.tsv' % (k, scoring_fct_norm,
+                                                           epochs, batch_size,
+                                                           lm_str,
+                                                           num_negs_per_pos,
+                                                           seed)
 
 
 def train(dataset: Dataset, model_out_directory: str, k: int,
@@ -89,4 +96,3 @@ def train_hpo(dataset: Dataset, model_out_directory: str, trials: int,
           loss_margin=best_t.params['loss.margin'],
           num_negs_per_pos=best_t.params['negative_sampler.num_negs_per_pos'],
           seed=seed)
-
