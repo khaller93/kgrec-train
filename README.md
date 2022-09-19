@@ -46,7 +46,7 @@ fetching of entities and statements.
 | rdf2vec        | Linked Data Semantic Distance |
 | transE         |                               |
 
-#### Train RDF2Vec Embedding
+#### Train rdf2vec Embedding
 
 ```
 Usage: main.py train rdf2vec [OPTIONS]
@@ -62,7 +62,7 @@ Options:
   --dataset TEXT              [default: pokemon]
 ```
 
-#### Train TransE Embedding
+#### Train transE Embedding
 
 ```
 Usage: main.py train transe [OPTIONS]
@@ -86,7 +86,13 @@ Options:
 The similarity metric LDSD hasn't any hyperparameter to choose.
 
 ```
+Usage: main.py compute ldsd [OPTIONS]
 
+  compute LDSD similarity metric
+
+Options:
+  --model-out-directory TEXT  [default: model]
+  --dataset TEXT              [default: pokemon]
 ```
 
 ## Contact
