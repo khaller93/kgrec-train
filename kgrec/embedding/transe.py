@@ -78,13 +78,6 @@ def train_hpo(dataset: Dataset, model_out_directory: str, trials: int,
         validation=validation,
         model='TransE',
         n_trials=trials,
-        training_kwargs_ranges={
-            'num_epochs': {
-                'type': int,
-                'low': 1,
-                'high': 1,
-            }
-        },
     )
     result.save_to_directory(path.join(model_out_directory, dataset.name,
                                        'transE-hpo'))
