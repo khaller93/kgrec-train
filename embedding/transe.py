@@ -17,16 +17,23 @@ def get_model_name(k: int, epochs: int, batch_size: int, seed: int):
     return 'transE_k%d_e%d_bs%d_s%d.tsv' % (k, epochs, batch_size, seed)
 
 
-def train(dataset: Dataset, model_out_directory: str, k: int, epochs: int,
-          batch_size: int, seed: int):
+def train(dataset: Dataset, model_out_directory: str, k: int,
+          scoring_fct_norm: int, epochs: int,
+          batch_size: int, loss_margin: float, num_negs_per_pos: int,
+          seed: int):
     kg = np.array(collect_statements(dataset), dtype=str)
     kg = TriplesFactory.from_labeled_triples(triples=kg,
                                              create_inverse_triples=False)
 
-    model = TransE(triples_factory=kg, embedding_dim=k)
+    model = TransE(triples_factory=kg, embedding_dim=k,
+                   scoring_fct_norm=scoring_fct_norm,
+                   loss_kwargs=dict(margin=loss_margin),
+                   random_seed=seed)
+
     training_loop = SLCWATrainingLoop(
         model=model,
         triples_factory=kg,
+        negative_sampler_kwargs=dict(num_negs_per_pos=num_negs_per_pos),
     )
 
     _ = training_loop.train(
@@ -63,6 +70,23 @@ def train_hpo(dataset: Dataset, model_out_directory: str, trials: int,
         validation=validation,
         model='TransE',
         n_trials=trials,
+        training_kwargs_ranges={
+            'num_epochs': {
+                'type': int,
+                'low': 1,
+                'high': 10,
+            }
+        },
     )
     result.save_to_directory(path.join(model_out_directory, dataset.name,
                                        'transE-hpo'))
+
+    best_t = result.study.best_trial
+    train(dataset, model_out_directory, k=best_t.params['model.embedding_dim'],
+          scoring_fct_norm=best_t.params['model.scoring_fct_norm'],
+          epochs=best_t.params['training.num_epochs'],
+          batch_size=best_t.params['training.batch_size'],
+          loss_margin=best_t.params['loss.margin'],
+          num_negs_per_pos=best_t.params['negative_sampler.num_negs_per_pos'],
+          seed=seed)
+
