@@ -15,19 +15,17 @@ from kgrec.kg.statements import collect_statements
 
 def get_model_name(k: int, scoring_fct_norm: int,
                    epochs: int, batch_size: int, loss_margin: float,
-                   num_negs_per_pos: int, seed: int):
+                   num_negs_per_pos: int, lr_optimizer: float, seed: int):
     lm_str = str(loss_margin).replace('.', '_')
-    return 'transE_k%d_sc%d_e%d_bs%d_lm%s_np%d_s%d.tsv' % (k, scoring_fct_norm,
-                                                           epochs, batch_size,
-                                                           lm_str,
-                                                           num_negs_per_pos,
-                                                           seed)
+    lro_str = str(lr_optimizer).replace('.', '_')
+    return 'transE_k%d_sc%d_e%d_bs%d_lm%s_np%d_lro%s_s%d.tsv' % \
+           (k, scoring_fct_norm, epochs, batch_size, lm_str, num_negs_per_pos,
+            lro_str, seed)
 
 
 def train(dataset: Dataset, model_out_directory: str, k: int,
-          scoring_fct_norm: int, epochs: int,
-          batch_size: int, loss_margin: float, num_negs_per_pos: int,
-          seed: int):
+          scoring_fct_norm: int, epochs: int, batch_size: int,
+          loss_margin: float, num_negs_per_pos: int, lr: float, seed: int):
     kg = np.array(collect_statements(dataset), dtype=str)
     kg = TriplesFactory.from_labeled_triples(triples=kg,
                                              create_inverse_triples=False)
@@ -41,6 +39,7 @@ def train(dataset: Dataset, model_out_directory: str, k: int,
         model=model,
         triples_factory=kg,
         negative_sampler_kwargs=dict(num_negs_per_pos=num_negs_per_pos),
+        optimizer_kwargs=dict(lr=lr)
     )
 
     _ = training_loop.train(
@@ -59,7 +58,9 @@ def train(dataset: Dataset, model_out_directory: str, k: int,
         embeddings.append(entity_embedding_tensor[kg.entity_to_id[entity]])
 
     model_file = path.join(model_out_directory, dataset.name.lower(),
-                           get_model_name(k, epochs, batch_size, seed))
+                           get_model_name(k, scoring_fct_norm, epochs,
+                                          batch_size, loss_margin,
+                                          num_negs_per_pos, lr, seed))
     pd.DataFrame(embeddings).to_csv(model_file, index=False,
                                     sep='\t', header=False)
 
@@ -81,7 +82,7 @@ def train_hpo(dataset: Dataset, model_out_directory: str, trials: int,
             'num_epochs': {
                 'type': int,
                 'low': 1,
-                'high': 10,
+                'high': 1,
             }
         },
     )
@@ -89,10 +90,13 @@ def train_hpo(dataset: Dataset, model_out_directory: str, trials: int,
                                        'transE-hpo'))
 
     best_t = result.study.best_trial
-    train(dataset, model_out_directory, k=best_t.params['model.embedding_dim'],
+    print(best_t.params)
+    train(dataset, model_out_directory,
+          k=best_t.params['model.embedding_dim'],
           scoring_fct_norm=best_t.params['model.scoring_fct_norm'],
           epochs=best_t.params['training.num_epochs'],
           batch_size=best_t.params['training.batch_size'],
           loss_margin=best_t.params['loss.margin'],
+          lr=best_t.params['optimizer.lr'],
           num_negs_per_pos=best_t.params['negative_sampler.num_negs_per_pos'],
           seed=seed)
