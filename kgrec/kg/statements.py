@@ -1,7 +1,7 @@
 from SPARQLWrapper import SPARQLWrapper, JSON
 
-from datasets import Dataset
-from kg.utils import create_ns_filter
+from kgrec.datasets import Dataset
+from kgrec.kg.utils import create_ns_filter
 
 _load_sparql_limit = 500
 

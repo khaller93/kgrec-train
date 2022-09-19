@@ -1,17 +1,18 @@
 import numpy as np
 import pandas as pd
 import os.path as path
-import progressbar
+import progressbar as pb
 
 from collections.abc import Mapping, Sequence
-from datasets import Dataset
-from kg.entities import get_entities
-from kg.ldsd import query_for_ldsd
+
+from kgrec.datasets import Dataset
+from kgrec.kg.entities import get_entities
+from kgrec.kg.ldsd import query_for_ldsd
 
 widgets = [
-    ' [', progressbar.Timer(), '] ',
-    progressbar.Bar(),
-    ' (', progressbar.ETA(), ') ',
+    ' [', pb.Timer(), '] ',
+    pb.Bar(),
+    ' (', pb.ETA(), ') ',
 ]
 
 
@@ -52,7 +53,7 @@ def train(dataset: Dataset, model_out_directory: str):
     ent_id = _get_entity_id_map(ent)
 
     sim_x = np.ones((len(ent), len(ent)), dtype=np.float64)
-    with progressbar.ProgressBar(max_value=len(ent)) as p:
+    with pb.ProgressBar(max_value=len(ent)) as p:
         for i, r_a in enumerate(ent):
             sim_x[i, i] = 0
             resp = query_for_ldsd(dataset, r_a)

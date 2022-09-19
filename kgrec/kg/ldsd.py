@@ -2,7 +2,7 @@ import numpy as np
 
 from SPARQLWrapper import SPARQLWrapper, JSON
 
-from datasets import Dataset
+from kgrec.datasets import Dataset
 
 _load_sparql_limit = 500
 

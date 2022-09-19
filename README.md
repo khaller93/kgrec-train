@@ -1,7 +1,7 @@
 # KG-based recommendation
 
-This application should allow to play around with KG-based recommendation. It
-aims to provide a command line interface to train models, analyse the results
+This application aims to enable experiments with KG-based recommendation. It
+provides a command line interface to train models, analyse the results
 and recommend items based on a user-item KG.
 
 ## Installation
@@ -38,12 +38,20 @@ Thus, a dataset is defined by a SPARQL endpoint URL. Optionally, also the
 default named graph can be specified as well as named graphs to ignore in the
 fetching of entities and statements.
 
-### Train RDF2Vec Embedding
+### Train/Compute Models
+
+
+| **Embeddings** | **Similarity Metrics**        |
+| -------------- | ----------------------------- |
+| rdf2vec        | Linked Data Semantic Distance |
+| transE         |                               |
+
+#### Train RDF2Vec Embedding
 
 ```
-Usage: main.py rdf2vec [OPTIONS]
+Usage: main.py train rdf2vec [OPTIONS]
 
-  train the rdf2vec embeddings
+  train rdf2vec embeddings
 
 Options:
   --epochs INTEGER            [default: 10]
@@ -54,30 +62,31 @@ Options:
   --dataset TEXT              [default: pokemon]
 ```
 
-### Train TransE Embedding
+#### Train TransE Embedding
 
 ```
-Usage: main.py transe [OPTIONS]
+Usage: main.py train transe [OPTIONS]
+
+  train transE embeddings
 
 Options:
-  --k INTEGER                 [default: 64]
+  --dim INTEGER               [default: 64]
+  --scoring-fct-norm INTEGER  [default: 1]
   --epochs INTEGER            [default: 10]
   --batch-size INTEGER        [default: 256]
+  --loss-margin FLOAT         [default: 0.5]
+  --negs-per-pos INTEGER      [default: 4]
   --seed INTEGER              [default: 133]
   --model-out-directory TEXT  [default: model]
   --dataset TEXT              [default: pokemon]
 ```
 
-### Compute LDSD Metric
+#### Compute LDSD Metric
 
 The similarity metric LDSD hasn't any hyperparameter to choose.
 
 ```
-Usage: main.py ldsd [OPTIONS]
 
-Options:
-  --model-out-directory TEXT  [default: model]
-  --dataset TEXT              [default: pokemon]
 ```
 
 ## Contact

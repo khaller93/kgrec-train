@@ -3,14 +3,14 @@ import os.path as path
 
 import pandas as pd
 
-from datasets import Dataset
 from pykeen.triples import TriplesFactory
 from pykeen.hpo import hpo_pipeline
 from pykeen.models.unimodal import TransE
 from pykeen.training import SLCWATrainingLoop
 
-from kg.entities import get_entities
-from kg.statements import collect_statements
+from kgrec.datasets import Dataset
+from kgrec.kg.entities import get_entities
+from kgrec.kg.statements import collect_statements
 
 
 def get_model_name(k: int, scoring_fct_norm: int,

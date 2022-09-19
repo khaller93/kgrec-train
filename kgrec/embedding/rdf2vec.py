@@ -2,13 +2,13 @@ import os.path as path
 import pandas as pd
 
 from multiprocessing import cpu_count
-
-from datasets import Dataset
-from kg.entities import get_entities
 from pyrdf2vec.graphs import KG
 from pyrdf2vec import RDF2VecTransformer
 from pyrdf2vec.embedders import Word2Vec
 from pyrdf2vec.walkers import RandomWalker
+
+from kgrec.datasets import Dataset
+from kgrec.kg.entities import get_entities
 
 
 def get_model_name(epochs: int, walks: int, path_length: int, seed: int):
