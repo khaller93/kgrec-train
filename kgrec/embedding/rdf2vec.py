@@ -11,12 +11,14 @@ from kgrec.datasets import Dataset
 from kgrec.kg.entities import get_entities
 
 
-def get_model_name(epochs: int, walks: int, path_length: int, seed: int):
-    return 'rdf2vec_e%d_w%d_d%d_s%d.tsv' % (epochs, walks, path_length, seed)
+def get_model_name(epochs: int, walks: int, path_length: int, reverse: bool,
+                   seed: int):
+    return 'rdf2vec_e%d_w%d_d%d_r%s_s%d.tsv' % (epochs, walks, path_length,
+                                                str(reverse).lower(), seed)
 
 
 def train(dataset: Dataset, model_out_directory: str, epochs: int, walks: int,
-          path_length: int, seed: int):
+          path_length: int, with_reverse, seed: int):
     ent = get_entities(dataset, model_out_directory)
     kg = KG(
         dataset.sparql_endpoint,
@@ -28,13 +30,14 @@ def train(dataset: Dataset, model_out_directory: str, epochs: int, walks: int,
     transformer = RDF2VecTransformer(
         Word2Vec(epochs=epochs),
         walkers=[RandomWalker(max_walks=walks, max_depth=path_length,
-                              random_state=seed, with_reverse=False,
+                              random_state=seed, with_reverse=with_reverse,
                               n_jobs=cpu_count())],
         verbose=1
     )
 
     embeddings, _ = transformer.fit_transform(kg, ent['iri'].values.tolist())
     model_file = path.join(model_out_directory, dataset.name.lower(),
-                           get_model_name(epochs, walks, path_length, seed))
+                           get_model_name(epochs, walks, path_length,
+                                          with_reverse, seed))
     pd.DataFrame(embeddings).to_csv(model_file, index=False,
                                     sep='\t', header=False)
