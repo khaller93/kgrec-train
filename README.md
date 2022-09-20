@@ -54,12 +54,16 @@ Usage: main.py train rdf2vec [OPTIONS]
   train rdf2vec embeddings
 
 Options:
-  --epochs INTEGER            [default: 10]
-  --walks INTEGER             [default: 200]
-  --path-length INTEGER       [default: 4]
-  --seed INTEGER              [default: 133]
-  --model-out-directory TEXT  [default: model]
-  --dataset TEXT              [default: pokemon]
+  --epochs INTEGER                [default: 10]
+  --walks INTEGER                 [default: 200]
+  --path-length INTEGER           [default: 4]
+  --with-reverse / --no-with-reverse
+                                  [default: no-with-reverse]
+  --skip-type / --no-skip-type    [default: no-skip-type]
+  --seed INTEGER                  [default: 133]
+  --model-out-directory TEXT      [default: model]
+  --dataset TEXT                  [default: pokemon]
+
 ```
 
 #### Train transE Embedding
@@ -76,6 +80,24 @@ Options:
   --batch-size INTEGER        [default: 256]
   --loss-margin FLOAT         [default: 0.5]
   --negs-per-pos INTEGER      [default: 4]
+  --seed INTEGER              [default: 133]
+  --model-out-directory TEXT  [default: model]
+  --dataset TEXT              [default: pokemon]
+```
+
+##### Hyperparameter Tuning for transE
+
+Parameters can be tuned for transE using link-prediction train, test and
+validation sets. Then we can assume that a good parameter for link prediction
+can also be used for similarity/relatedness.
+
+```
+Usage: main.py train transe-hpo [OPTIONS]
+
+  tune parameters and train transE embeddings with best found parameters
+
+Options:
+  --trials INTEGER            [default: 10]
   --seed INTEGER              [default: 133]
   --model-out-directory TEXT  [default: model]
   --dataset TEXT              [default: pokemon]
