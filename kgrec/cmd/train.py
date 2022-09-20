@@ -8,11 +8,11 @@ app = typer.Typer()
 
 @app.command(name='rdf2vec', help='train rdf2vec embeddings')
 def rdf2vec_cmd(epochs: int = 10, walks: int = 200, path_length: int = 4,
-                with_reverse: bool = False, seed: int = 133,
-                model_out_directory: str = 'model',
+                with_reverse: bool = False, skip_type: bool = False,
+                seed: int = 133, model_out_directory: str = 'model',
                 dataset: str = 'pokemon'):
     rdf2vec.train(parse(dataset), model_out_directory, epochs, walks,
-                  path_length, with_reverse, seed)
+                  path_length, with_reverse, skip_type, seed)
 
 
 @app.command(name='transe', help='train transE embeddings')

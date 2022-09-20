@@ -11,18 +11,20 @@ from kgrec.datasets import Dataset
 from kgrec.kg.entities import get_entities
 
 
-def get_model_name(epochs: int, walks: int, path_length: int, reverse: bool,
-                   seed: int):
-    return 'rdf2vec_e%d_w%d_d%d_r%s_s%d.tsv' % (epochs, walks, path_length,
-                                                str(reverse).lower(), seed)
+def get_model_name(epochs: int, walks: int, path_length: int,
+                   with_reverse: bool, skip_type: bool, seed: int):
+    return 'rdf2vec_e%d_w%d_d%d_withR%s_skipType%s_s%d.tsv' % \
+           (epochs, walks, path_length, str(with_reverse).lower(),
+            str(skip_type).lower(), seed)
 
 
 def train(dataset: Dataset, model_out_directory: str, epochs: int, walks: int,
-          path_length: int, with_reverse, seed: int):
+          path_length: int, with_reverse: bool, skip_type, seed: int):
     ent = get_entities(dataset, model_out_directory)
+    skip_p = {'www.w3.org/1999/02/22-rdf-syntax-ns#type'} if skip_type else {}
     kg = KG(
         dataset.sparql_endpoint,
-        skip_predicates={'www.w3.org/1999/02/22-rdf-syntax-ns#type'},
+        skip_predicates=skip_p,
         literals=[],
         skip_verify=True,
     )
@@ -38,6 +40,6 @@ def train(dataset: Dataset, model_out_directory: str, epochs: int, walks: int,
     embeddings, _ = transformer.fit_transform(kg, ent['iri'].values.tolist())
     model_file = path.join(model_out_directory, dataset.name.lower(),
                            get_model_name(epochs, walks, path_length,
-                                          with_reverse, seed))
+                                          with_reverse, skip_type, seed))
     pd.DataFrame(embeddings).to_csv(model_file, index=False,
                                     sep='\t', header=False)
