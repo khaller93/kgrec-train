@@ -1,6 +1,5 @@
 pandas>=1.4.4
 rdflib>=6.2.0
-pyRDF2vec>=0.2.3
 nest_asyncio>=1.5.5
 gensim>=4.2.0
 aiohttp>=3.8.1
@@ -10,3 +9,4 @@ pykeen>=1.9.0
 numpy>=1.23.3
 typer>=0.6.1
 progressbar2>=4.0.0
+git+https://github.com/IBCNServices/pyRDF2Vec.git
