@@ -66,8 +66,8 @@ SELECT ?rB ?p ?do ?di ?dio ?dii WHERE
   FILTER (isIRI(?rB) && ?rA != ?rB) .
 }
 ORDER BY ASC(?rB)
-OFFSET %d
-LIMIT %d
+OFFSET %%offset%%
+LIMIT %%limit%%
 """
 
 
@@ -83,7 +83,8 @@ def query_for_ldsd(dataset: Dataset, r_a: str):
     offset = 0
     values = {}
     while True:
-        sparql.setQuery(q % (offset, _load_sparql_limit))
+        sparql.setQuery(q.replace('%%offset%%', str(offset), 1)
+                        .replace('%%limit%%', str(_load_sparql_limit), 1))
         ret = sparql.queryAndConvert()
 
         n = 0
