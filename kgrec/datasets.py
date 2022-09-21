@@ -7,7 +7,7 @@ class Dataset(Enum):
     @property
     def sparql_endpoint(self):
         if self == Dataset.Pokemon:
-            return 'https://pokemonkg.kevinhaller.dev/sparql/query'
+            return 'https://pokemonkg.kevinhaller.dev/sparql'
         else:
             raise ValueError('no sparql endpoint known for %s' % self.name)
 
