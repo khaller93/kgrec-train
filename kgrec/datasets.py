@@ -16,7 +16,10 @@ class Dataset(Enum):
 
     @property
     def default_graph(self):
-        return None
+        if self == Dataset.DBpedia100k:
+            return 'http://dbpedia.org/'
+        else:
+            return None
 
     @property
     def ignore_named_graphs(self):
