@@ -3,11 +3,14 @@ from enum import Enum
 
 class Dataset(Enum):
     Pokemon = 1
+    DBpedia100k = 2
 
     @property
     def sparql_endpoint(self):
         if self == Dataset.Pokemon:
             return 'https://pokemonkg.kevinhaller.dev/sparql/query'
+        elif self == Dataset.DBpedia100k:
+            return 'https://dbpedia100k.kevinhaller.dev/sparql/query'
         else:
             raise ValueError('no sparql endpoint known for %s' % self.name)
 
@@ -17,16 +20,13 @@ class Dataset(Enum):
 
     @property
     def ignore_named_graphs(self):
-        if self == Dataset.Pokemon:
-            return ['http://www.openlinksw.com/schemas/virtrdf#',
-                    'http://localhost:8890/sparql',
-                    'http://localhost:8890/DAV/']
-        else:
-            return None
+        return None
 
 
 def parse(dataset: str) -> Dataset:
     if dataset.lower() == Dataset.Pokemon.name.lower():
         return Dataset.Pokemon
+    elif dataset.lower() == Dataset.DBpedia100k.name.lower():
+        return Dataset.DBpedia100k
     else:
         raise ValueError('the dataset "%s" is unknown' % dataset)
