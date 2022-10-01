@@ -1,25 +1,42 @@
 import os.path as path
 import pandas as pd
+import progressbar as pb
 
 from os import makedirs
 from SPARQLWrapper import SPARQLWrapper, JSON
 
 from kgrec.datasets import Dataset
-from kgrec.kg.utils import create_ns_filter
 
-_load_sparql_limit = 500
+_load_sparql_limit = 10000
+
+_count_entities_query = """
+SELECT (count(distinct ?s) as ?cnt) WHERE
+{
+    {?s ?p ?o} UNION {?u ?b ?s}
+    FILTER(isIRI(?s))
+}
+"""
 
 _entities_sparql_query = """
-SELECT DISTINCT ?s WHERE {
-    Graph ?g {
+SELECT ?s WHERE
+{
+    SELECT distinct ?s WHERE {
         {?s ?p ?o} UNION {?u ?b ?s}
         FILTER(isIRI(?s))
     }
-    %s
+    ORDER BY ASC(?s)
 }
-OFFSET %d
-LIMIT %d
+OFFSET %%offset%%
+LIMIT %%limit%%
 """
+
+
+def _count_entities(sparql: SPARQLWrapper) -> int:
+    sparql.setQuery(_count_entities_query)
+    ret = sparql.queryAndConvert()
+    if len(ret['results']['bindings']) == 0:
+        raise ValueError('couldn\'t fetch entity count')
+    return int(ret['results']['bindings'][0]['cnt']['value'])
 
 
 def gather_entities_from_sparql_endpoint(dataset: Dataset) -> pd.DataFrame:
@@ -28,24 +45,25 @@ def gather_entities_from_sparql_endpoint(dataset: Dataset) -> pd.DataFrame:
         defaultGraph=dataset.default_graph,
     )
     sparql.setReturnFormat(JSON)
-
     offset = 0
     values = []
-    ignore_ns = dataset.ignore_named_graphs
-    while True:
-        sparql.setQuery(_entities_sparql_query % (create_ns_filter(ignore_ns),
-                                                  offset, _load_sparql_limit))
-        ret = sparql.queryAndConvert()
+    print('get entity count ...')
+    with pb.ProgressBar(max_value=_count_entities(sparql)) as p:
+        print('fetch entities ...')
+        while True:
+            sparql.setQuery(_entities_sparql_query
+                            .replace('%%offset%%', str(offset), 1)
+                            .replace('%%limit%%', str(_load_sparql_limit), 1))
+            ret = sparql.queryAndConvert()
 
-        n = 0
-        for r in ret["results"]["bindings"]:
-            values.append(r['s']['value'])
-            n += 1
+            if len(ret["results"]["bindings"]) == 0:
+                break
 
-        if n == _load_sparql_limit:
+            for r in ret["results"]["bindings"]:
+                values.append(r['s']['value'])
+                p.update()
+
             offset += _load_sparql_limit
-        else:
-            break
 
     return pd.DataFrame(values, columns=['iri'])
 
