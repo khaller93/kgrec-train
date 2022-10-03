@@ -4,13 +4,13 @@ from SPARQLWrapper import SPARQLWrapper, JSON
 
 from kgrec.datasets import Dataset
 
-_load_sparql_limit = 500
+_load_sparql_limit = 10000
 
 _query = """
-SELECT ?rB ?p (count(?o1) as ?do) (count(?o2) as ?di) (count(?o3) as ?doi) (count(?o4) as ?dii) WHERE
+SELECT ?rB ?p ?do ?di ?dio ?dii WHERE
 {
   {
-    SELECT ?rB ?p WHERE
+    SELECT distinct ?rB ?p WHERE
     {
       {?rA ?p ?rB}
       UNION
@@ -29,29 +29,46 @@ SELECT ?rB ?p (count(?o1) as ?do) (count(?o2) as ?di) (count(?o3) as ?doi) (coun
     }
   }
   OPTIONAL {
-    ?rA ?p ?rB .
-    ?rA ?p ?o1 .
-    FILTER (isIRI(?o1)) .
+    SELECT ?rB ?p (count(?o1) as ?do) WHERE
+    {
+        ?rA ?p ?rB .
+        ?rA ?p ?o1 .
+        FILTER (isIRI(?o1) && ?rB != ?rA) .
+    }
+    GROUP BY ?rB ?p
   }
   OPTIONAL {
-    ?rB ?p ?rA .
-    ?rB ?p ?o2 .
-    FILTER (isIRI(?o2)) .
+    SELECT ?rB ?p (count(?o2) as ?di) WHERE
+    {
+        ?rB ?p ?rA .
+        ?rB ?p ?o2 .
+        FILTER (isIRI(?o2) && ?rB != ?rA) .
+    }
+    GROUP BY ?rB ?p
   }
   OPTIONAL {
-    ?rA ?p _:u .
-    ?rB ?p _:u .
-    ?o3 ?p _:v .
-    FILTER (isIRI(?o3)) .
+    SELECT ?rB ?p (count(?o3) as ?dio) WHERE
+    {
+        ?rA ?p _:u .
+        ?rB ?p _:u .
+        ?rA ?p _:v .
+        ?o3 ?p _:v .
+        FILTER (isIRI(?o3) && ?rB != ?rA) .
+    }
+    GROUP BY ?rB ?p
   }
   OPTIONAL {
-    _:k ?p ?rA .
-    _:k ?p ?rB .
-    _:l ?p ?o4 .
-    FILTER (isIRI(?o4)) .
+    SELECT ?rB ?p (count(?o4) as ?dii) WHERE
+    {
+        _:k ?p ?rA .
+        _:k ?p ?rB .
+        _:l ?p ?rA .
+        _:l ?p ?o4 .
+        FILTER (isIRI(?o4) && ?rB != ?rA) .
+    }
+    GROUP BY ?rB ?p
   }
 }
-GROUP BY ?rB ?p
 ORDER BY ASC(?rB) ASC(?p)
 OFFSET %%offset%%
 LIMIT %%limit%%
