@@ -52,6 +52,9 @@ def train(dataset: Dataset, model_out_directory: str):
             sim_x[i, i] = 0
             resp = query_for_ldsd(dataset, r_a)
             for r_b, val in _process_query_response(resp):
+                if r_b not in ent_id:
+                    print('ignored "%s" for "%s"' % (r_b, r_a))
+                    continue
                 j = ent_id[r_b]
                 sim_x[i, j] = val
             p.update(i)
