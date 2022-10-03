@@ -70,17 +70,14 @@ def query_for_ldsd(dataset: Dataset, r_a: str):
     offset = 0
     values = {}
     while True:
-        sparql.setQuery(q.replace('%%offset%%', str(offset), 1)
-                        .replace('%%limit%%', str(_load_sparql_limit), 1))
+        sparql.setQuery(q % (offset, _load_sparql_limit))
         ret = sparql.queryAndConvert()
 
         n = 0
         for r in ret["results"]["bindings"]:
-            n += 1
             r_b = r['rB']['value']
             if r_b not in values:
                 values[r_b] = {}
-            # parse the property values
             p = r['p']['value']
             di = np.float64(r['di']['value']) if 'di' in r else None
             do = np.float64(r['do']['value']) if 'do' in r else None
@@ -92,6 +89,7 @@ def query_for_ldsd(dataset: Dataset, r_a: str):
                 'dio': dio,
                 'dii': dii,
             }
+            n += 1
 
         if n == _load_sparql_limit:
             offset += _load_sparql_limit
@@ -99,3 +97,4 @@ def query_for_ldsd(dataset: Dataset, r_a: str):
             break
 
     return values
+

@@ -23,13 +23,13 @@ def _compute_result(properties: Mapping[str, dict]) -> np.float:
     dio_sum = np.float64(0)
     dii_sum = np.float64(0)
     for val in properties.values():
-        if val['do'] is not None:
+        if val['do'] is not None and val['do'] != 0:
             do_sum += np.float64(1) / (np.float64(1) + np.log(val['do']))
-        if val['di'] is not None:
+        if val['di'] is not None and val['di'] != 0:
             di_sum += np.float64(1) / (np.float64(1) + np.log(val['di']))
-        if val['dio'] is not None:
+        if val['dio'] is not None and val['dio'] != 0:
             dio_sum += np.float64(1) / (np.float64(1) + np.log(val['dio']))
-        if val['dii'] is not None:
+        if val['dii'] is not None and val['dii'] != 0:
             dii_sum += np.float64(1) / (np.float64(1) + np.log(val['dii']))
     return np.float64(1) / (np.float64(1) + do_sum + di_sum + dio_sum + dii_sum)
 
