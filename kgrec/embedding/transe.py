@@ -77,13 +77,13 @@ def train_hpo(dataset: Dataset, model_out_directory: str, trials: int,
         testing=testing,
         validation=validation,
         model='TransE',
+        model_kwargs=dict(random_seed=seed),
         n_trials=trials,
     )
     result.save_to_directory(path.join(model_out_directory, dataset.name,
                                        'transE-hpo'))
 
     best_t = result.study.best_trial
-    print(best_t.params)
     train(dataset, model_out_directory,
           k=best_t.params['model.embedding_dim'],
           scoring_fct_norm=best_t.params['model.scoring_fct_norm'],
