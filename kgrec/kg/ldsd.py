@@ -70,10 +70,7 @@ def query_for_ldsd(dataset: Dataset, r_a: str):
     offset = 0
     values = {}
     while True:
-        if 'pikachu' in r_a:
-            print(q.replace(r'%%offset%%', str(offset), 1)
-                  .replace('%%limit%%', str(_load_sparql_limit), 1))
-        sparql.setQuery(q.replace(r'%%offset%%', str(offset), 1)
+        sparql.setQuery(q.replace('%%offset%%', str(offset), 1)
                         .replace('%%limit%%', str(_load_sparql_limit), 1))
         ret = sparql.queryAndConvert()
 
