@@ -77,7 +77,7 @@ LIMIT %%limit%%
 
 def query_for_ldsd(dataset: Dataset, r_a: str):
     sparql = SPARQLWrapper(
-        endpoint=dataset.sparql_endpoint,
+        endpoint=dataset.sparql_endpoint + '/query',
         defaultGraph=dataset.default_graph,
     )
     sparql.setReturnFormat(JSON)

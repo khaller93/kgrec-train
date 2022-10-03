@@ -12,20 +12,18 @@ _load_sparql_limit = 10000
 _count_entities_query = """
 SELECT (count(distinct ?s) as ?cnt) WHERE
 {
-    {?s ?p ?o} UNION {?u ?b ?s}
-    FILTER(isIRI(?s))
+    ?s ?p [] .
+    FILTER(isIRI(?s)) .
 }
 """
 
 _entities_sparql_query = """
-SELECT ?s WHERE
+SELECT distinct ?s WHERE
 {
-    SELECT distinct ?s WHERE {
-        {?s ?p ?o} UNION {?u ?b ?s}
-        FILTER(isIRI(?s))
-    }
-    ORDER BY ASC(?s)
+    ?s ?p [] .
+    FILTER(isIRI(?s)) .
 }
+ORDER BY ASC(?s)
 OFFSET %%offset%%
 LIMIT %%limit%%
 """
@@ -41,7 +39,7 @@ def _count_entities(sparql: SPARQLWrapper) -> int:
 
 def gather_entities_from_sparql_endpoint(dataset: Dataset) -> pd.DataFrame:
     sparql = SPARQLWrapper(
-        endpoint=dataset.sparql_endpoint,
+        endpoint=dataset.sparql_endpoint + '/query',
         defaultGraph=dataset.default_graph,
     )
     sparql.setReturnFormat(JSON)

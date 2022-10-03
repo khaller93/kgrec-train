@@ -8,18 +8,15 @@ class Dataset(Enum):
     @property
     def sparql_endpoint(self):
         if self == Dataset.Pokemon:
-            return 'https://pokemonkg.kevinhaller.dev/sparql/query'
+            return 'https://pokemonkg.kevinhaller.dev/sparql'
         elif self == Dataset.DBpedia100k:
-            return 'https://dbpedia100k.kevinhaller.dev/sparql/query'
+            return 'https://dbpedia100k.kevinhaller.dev/sparql'
         else:
             raise ValueError('no sparql endpoint known for %s' % self.name)
 
     @property
     def default_graph(self):
-        if self == Dataset.DBpedia100k:
-            return 'http://dbpedia.org/'
-        else:
-            return None
+        return None
 
     @property
     def ignore_named_graphs(self):
