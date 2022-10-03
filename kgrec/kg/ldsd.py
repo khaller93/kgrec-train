@@ -7,7 +7,7 @@ from kgrec.datasets import Dataset
 _load_sparql_limit = 500
 
 _query = """
-SELECT ?rB ?p ?do ?di ?dio ?dii WHERE
+SELECT ?rB ?p (count(?o1) as ?do) (count(?o2) as ?di) (count(?o3) as ?doi) (count(?o4) as ?dii) WHERE
 {
   {
     SELECT ?rB ?p WHERE
@@ -23,51 +23,38 @@ SELECT ?rB ?p ?do ?di ?dio ?dii WHERE
       UNION
       {
         _:y ?p ?rA .
-        _:y ?p ?rA .
+        _:y ?p ?rB .
       }
+      FILTER(isIRI(?rB) && ?rB != ?rA) .
     }
-    GROUP BY ?rB ?p
   }
   OPTIONAL {
-    SELECT ?p (count(*) as ?do) WHERE
-    {
-      ?rA ?p ?o1 .
-      FILTER (isIRI(?o1)) .
-    }
-    GROUP BY ?rB ?p
+    ?rA ?p ?rB .
+    ?rA ?p ?o1 .
+    FILTER (isIRI(?o1)) .
   }
   OPTIONAL {
-    SELECT ?rB ?p (count(*) as ?di) WHERE
-    {
-      ?rB ?p ?rA .
-      ?rB ?p ?o2 .
-      FILTER (isIRI(?o2) && ?o2 != ?rA) .
-    }
-    GROUP BY ?rB ?p
+    ?rB ?p ?rA .
+    ?rB ?p ?o2 .
+    FILTER (isIRI(?o2)) .
   }
   OPTIONAL {
-    SELECT ?rB ?p (count(*) as ?dio) WHERE
-    {
-      ?rA ?p ?o3 .
-      ?rB ?p ?o3.
-      FILTER (isIRI(?o3)) .
-    }
-    GROUP BY ?rB ?p
+    ?rA ?p _:u .
+    ?rB ?p _:u .
+    ?o3 ?p _:v .
+    FILTER (isIRI(?o3)) .
   }
   OPTIONAL {
-    SELECT ?rB ?p (count(*) as ?dii) WHERE
-    {
-      ?o4 ?p ?rA .
-      ?o4 ?p ?rB .
-      FILTER (isIRI(?o4)) .
-    }
-    GROUP BY ?rB ?p
+    _:k ?p ?rA .
+    _:k ?p ?rB .
+    _:l ?p ?o4 .
+    FILTER (isIRI(?o4)) .
   }
-  FILTER (isIRI(?rB) && ?rA != ?rB) .
 }
-ORDER BY ASC(?rB)
-OFFSET %d
-LIMIT %d
+GROUP BY ?rB ?p
+ORDER BY ASC(?rB) ASC(?p)
+OFFSET %%offset%%
+LIMIT %%limit%%
 """
 
 
@@ -83,14 +70,20 @@ def query_for_ldsd(dataset: Dataset, r_a: str):
     offset = 0
     values = {}
     while True:
-        sparql.setQuery(q % (offset, _load_sparql_limit))
+        if 'pikachu' in r_a:
+            print(q.replace(r'%%offset%%', str(offset), 1)
+                  .replace('%%limit%%', str(_load_sparql_limit), 1))
+        sparql.setQuery(q.replace(r'%%offset%%', str(offset), 1)
+                        .replace('%%limit%%', str(_load_sparql_limit), 1))
         ret = sparql.queryAndConvert()
 
         n = 0
         for r in ret["results"]["bindings"]:
+            n += 1
             r_b = r['rB']['value']
             if r_b not in values:
                 values[r_b] = {}
+            # parse the property values
             p = r['p']['value']
             di = np.float64(r['di']['value']) if 'di' in r else None
             do = np.float64(r['do']['value']) if 'do' in r else None
@@ -102,7 +95,6 @@ def query_for_ldsd(dataset: Dataset, r_a: str):
                 'dio': dio,
                 'dii': dii,
             }
-            n += 1
 
         if n == _load_sparql_limit:
             offset += _load_sparql_limit
@@ -110,4 +102,3 @@ def query_for_ldsd(dataset: Dataset, r_a: str):
             break
 
     return values
-

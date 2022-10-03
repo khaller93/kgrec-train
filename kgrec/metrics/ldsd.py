@@ -9,12 +9,6 @@ from kgrec.datasets import Dataset
 from kgrec.kg.entities import get_entities
 from kgrec.kg.ldsd import query_for_ldsd
 
-widgets = [
-    ' [', pb.Timer(), '] ',
-    pb.Bar(),
-    ' (', pb.ETA(), ') ',
-]
-
 
 def _get_entity_id_map(entities: [str]):
     m = {}
@@ -41,7 +35,7 @@ def _compute_result(properties: Mapping[str, dict]) -> np.float:
 
 
 def _process_query_response(response: Mapping[str, Mapping[str, dict]]) -> [
-        (str, np.float)]:
+    (str, np.float)]:
     val_list = []
     for r_b, properties in response.items():
         val_list.append((r_b, _compute_result(properties)))
