@@ -119,4 +119,4 @@ Options:
 
 ## Contact
 
-* [Kevin Haller](mailto://contact@kevinhaller.dev)
+* Kevin Haller - [contact@kevinhaller.dev](mailto:contact@kevinhaller.dev)
