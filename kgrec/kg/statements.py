@@ -1,5 +1,10 @@
+import numpy as np
+import pandas as pd
 import progressbar as pb
 
+from os.path import join, exists
+
+import requests
 from SPARQLWrapper import SPARQLWrapper, JSON
 
 from kgrec.datasets import Dataset
@@ -31,15 +36,29 @@ LIMIT %d
 """
 
 
-def _count_statements(sparql: SPARQLWrapper) -> int:
-    sparql.setQuery(_statements_count_query)
-    ret = sparql.queryAndConvert()
-    if len(ret['results']['bindings']) == 0:
-        raise ValueError('couldn\'t fetch statements count')
-    return int(ret['results']['bindings'][0]['cnt']['value'])
+def collect_statements(dataset: Dataset,
+                       model_out_directory: str) -> np.ndarray:
+    if dataset.statements_file:
+        return __load_statements_from_file(dataset,
+                                           model_out_directory)
+    else:
+        return __load_statements_from_triplestore(dataset)
 
 
-def collect_statements(dataset: Dataset) -> [[str, str, str]]:
+def __load_statements_from_file(dataset: Dataset,
+                                model_out_directory: str) -> np.ndarray:
+    fp = join(model_out_directory, dataset.name.lower(),
+              dataset.statements_file[0])
+
+    if not exists(fp):
+        response = requests.get(dataset.statements_file[1])
+        with open(fp, 'wb+') as f:
+            f.write(response.content)
+
+    return pd.read_csv(fp, compression='gzip', header=None, sep='\t').values
+
+
+def __load_statements_from_triplestore(dataset: Dataset) -> np.ndarray:
     sparql = SPARQLWrapper(
         endpoint=dataset.sparql_endpoint + '/query',
         defaultGraph=dataset.default_graph,
@@ -57,7 +76,7 @@ def collect_statements(dataset: Dataset) -> [[str, str, str]]:
     print('collect statements ...')
     offset = 0
     print('get statement count ...')
-    with pb.ProgressBar(max_value=_count_statements(sparql)) as p:
+    with pb.ProgressBar(max_value=__count_statements(sparql)) as p:
         print('fetch statements ...')
         while True:
             sparql.setQuery(_statements_iri_node_query % (offset,
@@ -75,4 +94,12 @@ def collect_statements(dataset: Dataset) -> [[str, str, str]]:
             else:
                 break
 
-    return values
+    return np.array(values)
+
+
+def __count_statements(sparql: SPARQLWrapper) -> int:
+    sparql.setQuery(_statements_count_query)
+    ret = sparql.queryAndConvert()
+    if len(ret['results']['bindings']) == 0:
+        raise ValueError('couldn\'t fetch statements count')
+    return int(ret['results']['bindings'][0]['cnt']['value'])

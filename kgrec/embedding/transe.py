@@ -26,9 +26,9 @@ def get_model_name(k: int, scoring_fct_norm: int,
 def train(dataset: Dataset, model_out_directory: str, k: int,
           scoring_fct_norm: int, epochs: int, batch_size: int,
           loss_margin: float, num_negs_per_pos: int, lr: float, seed: int):
-    kg = np.array(collect_statements(dataset), dtype=str)
-    kg = TriplesFactory.from_labeled_triples(triples=kg,
-                                             create_inverse_triples=False)
+    kg = TriplesFactory.from_labeled_triples(
+        triples=collect_statements(dataset, model_out_directory),
+        create_inverse_triples=False)
 
     model = TransE(triples_factory=kg, embedding_dim=k,
                    scoring_fct_norm=scoring_fct_norm,
@@ -67,9 +67,9 @@ def train(dataset: Dataset, model_out_directory: str, k: int,
 
 def train_hpo(dataset: Dataset, model_out_directory: str, trials: int,
               seed: int):
-    kg = np.array(collect_statements(dataset), dtype=str)
-    kg = TriplesFactory.from_labeled_triples(triples=kg,
-                                             create_inverse_triples=False)
+    kg = TriplesFactory.from_labeled_triples(
+        triples=collect_statements(dataset, model_out_directory),
+        create_inverse_triples=False)
 
     training, testing, validation = kg.split([.8, .1, .1], random_state=seed)
     result = hpo_pipeline(

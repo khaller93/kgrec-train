@@ -22,6 +22,14 @@ class Dataset(Enum):
     def ignore_named_graphs(self):
         return None
 
+    @property
+    def statements_file(self):
+        if self == Dataset.DBpedia100k:
+            return '22-03-dbpedia-all.tsv.gz', \
+                   'https://kevinhaller.dev/datasets/dbpedia/100k/22-03-dbpedia-all.tsv.gz'
+        else:
+            return None
+
 
 def parse(dataset: str) -> Dataset:
     if dataset.lower() == Dataset.Pokemon.name.lower():
