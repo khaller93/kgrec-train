@@ -19,10 +19,6 @@ class Dataset(Enum):
         return None
 
     @property
-    def ignore_named_graphs(self):
-        return None
-
-    @property
     def statements_file(self):
         if self == Dataset.DBpedia100k:
             return '22-03-dbpedia-all.tsv.gz', \
