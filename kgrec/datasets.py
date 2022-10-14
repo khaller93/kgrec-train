@@ -23,6 +23,9 @@ class Dataset(Enum):
         if self == Dataset.DBpedia100k:
             return '22-03-dbpedia-all.tsv.gz', \
                    'https://kevinhaller.dev/datasets/dbpedia/100k/22-03-dbpedia-all.tsv.gz'
+        elif self == Dataset.Pokemon:
+            return 'poke-a-all.tsv.gz', \
+                   'https://pokemonkg.org/download/dump/poke-a-all.tsv.gz'
         else:
             return None
 

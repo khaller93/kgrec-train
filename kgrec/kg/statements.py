@@ -52,7 +52,9 @@ def __load_statements_from_file(dataset: Dataset,
               dataset.statements_file[0])
 
     if not exists(fp):
-        makedirs(join(model_out_directory, dataset.name.lower()))
+        parent_dir = join(model_out_directory, dataset.name.lower())
+        if not exists(parent_dir):
+            makedirs(parent_dir)
         response = requests.get(dataset.statements_file[1])
         with open(fp, 'wb+') as f:
             f.write(response.content)
