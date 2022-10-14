@@ -1,12 +1,15 @@
-import numpy as np
+from multiprocessing import cpu_count
+
 import os.path as path
 
 import pandas as pd
+import torch
 
 from pykeen.triples import TriplesFactory
 from pykeen.hpo import hpo_pipeline
 from pykeen.models.unimodal import TransE
 from pykeen.training import SLCWATrainingLoop
+from pykeen.utils import resolve_device
 
 from kgrec.datasets import Dataset
 from kgrec.kg.entities import get_entities
@@ -30,6 +33,8 @@ def train(dataset: Dataset, model_out_directory: str, k: int,
         triples=collect_statements(dataset, model_out_directory),
         create_inverse_triples=False)
 
+    torch.device = resolve_device("gpu")
+
     model = TransE(triples_factory=kg, embedding_dim=k,
                    scoring_fct_norm=scoring_fct_norm,
                    loss_kwargs=dict(margin=loss_margin),
@@ -45,6 +50,7 @@ def train(dataset: Dataset, model_out_directory: str, k: int,
     _ = training_loop.train(
         triples_factory=kg,
         num_epochs=epochs,
+        pin_memory=True,
         batch_size=batch_size,
     )
 
