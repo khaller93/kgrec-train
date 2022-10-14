@@ -2,13 +2,14 @@ import os.path as path
 import pandas as pd
 
 from multiprocessing import cpu_count
-from pyrdf2vec.graphs import KG
+from pyrdf2vec.graphs import KG, Vertex
 from pyrdf2vec import RDF2VecTransformer
 from pyrdf2vec.embedders import Word2Vec
 from pyrdf2vec.walkers import RandomWalker
 
 from kgrec.datasets import Dataset
 from kgrec.kg.entities import get_entities
+from kgrec.kg.statements import collect_statements
 
 
 def get_model_name(epochs: int, walks: int, path_length: int,
@@ -22,12 +23,15 @@ def train(dataset: Dataset, model_out_directory: str, epochs: int, walks: int,
           path_length: int, with_reverse: bool, skip_type, seed: int):
     ent = get_entities(dataset, model_out_directory)
     skip_p = {'www.w3.org/1999/02/22-rdf-syntax-ns#type'} if skip_type else {}
-    kg = KG(
-        dataset.sparql_endpoint,
-        skip_predicates=skip_p,
-        literals=[],
-        skip_verify=True,
-    )
+
+    kg = KG(skip_verify=True)
+    for stmt in collect_statements(dataset, model_out_directory):
+        if str(stmt[1]) in skip_p:
+            continue
+        sub = Vertex(stmt[0])
+        obj = Vertex(stmt[1])
+        pred = Vertex(stmt[2], predicate=True, vprev=sub, vnext=obj)
+        kg.add_walk(sub, pred, obj)
 
     transformer = RDF2VecTransformer(
         Word2Vec(epochs=epochs),
