@@ -33,12 +33,14 @@ def train(dataset: Dataset, model_out_directory: str, k: int,
         triples=collect_statements(dataset, model_out_directory),
         create_inverse_triples=False)
 
-    torch.device = resolve_device("gpu")
-
     model = TransE(triples_factory=kg, embedding_dim=k,
                    scoring_fct_norm=scoring_fct_norm,
                    loss_kwargs=dict(margin=loss_margin),
                    random_seed=seed)
+
+    if torch.cuda.is_available():
+        _device: torch.device = resolve_device("gpu")
+        model.to(_device)
 
     training_loop = SLCWATrainingLoop(
         model=model,
@@ -55,6 +57,9 @@ def train(dataset: Dataset, model_out_directory: str, k: int,
     )
 
     ent = get_entities(dataset, model_out_directory)
+
+    if torch.cuda.is_available():
+        model.cpu()
 
     entity_embedding_tensor = model.entity_representations[0](
         indices=None).detach().numpy()
