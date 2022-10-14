@@ -34,8 +34,7 @@ def _compute_result(properties: Mapping[str, dict]) -> np.float:
     return np.float64(1) / (np.float64(1) + do_sum + di_sum + dio_sum + dii_sum)
 
 
-def _process_query_response(response: Mapping[str, Mapping[str, dict]]) -> [
-    (str, np.float)]:
+def _process_query_response(response: Mapping[str, Mapping[str, dict]]):
     val_list = []
     for r_b, properties in response.items():
         val_list.append((r_b, _compute_result(properties)))
@@ -46,18 +45,18 @@ def train(dataset: Dataset, model_out_directory: str):
     ent = get_entities(dataset, model_out_directory)['iri'].values.tolist()
     ent_id = _get_entity_id_map(ent)
 
-    sim_x = np.ones((len(ent), len(ent)), dtype=np.float64)
-    with pb.ProgressBar(max_value=len(ent)) as p:
-        for i, r_a in enumerate(ent):
-            sim_x[i, i] = 0
-            resp = query_for_ldsd(dataset, r_a)
-            for r_b, val in _process_query_response(resp):
-                if r_b not in ent_id:
-                    continue
-                j = ent_id[r_b]
-                sim_x[i, j] = val
-            p.update(i)
-
     model_file = path.join(model_out_directory, dataset.name.lower(),
                            'ldsd.tsv')
-    pd.DataFrame(sim_x).to_csv(model_file, index=False, sep='\t', header=False)
+    with open(model_file, 'w') as f:
+        with pb.ProgressBar(max_value=len(ent)) as p:
+            for i, r_a in enumerate(ent):
+                f.write('%d,%d\t%s\n' % (i, i, np.float(0)))
+                resp = query_for_ldsd(dataset, r_a)
+                for r_b, val in _process_query_response(resp):
+                    print('(%s,%s) = %s' % (r_a, r_b, val))
+                    if r_b not in ent_id:
+                        continue
+                    j = ent_id[r_b]
+                    f.write('%d,%d\t%s\n' % (i, j, val))
+                p.update(i)
+
