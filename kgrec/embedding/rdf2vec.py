@@ -1,7 +1,6 @@
 import os.path as path
 import pandas as pd
 
-from multiprocessing import cpu_count
 from pyrdf2vec.graphs import KG, Vertex
 from pyrdf2vec import RDF2VecTransformer
 from pyrdf2vec.embedders import Word2Vec
@@ -20,7 +19,8 @@ def get_model_name(epochs: int, walks: int, path_length: int,
 
 
 def train(dataset: Dataset, model_out_directory: str, epochs: int, walks: int,
-          path_length: int, with_reverse: bool, skip_type, seed: int):
+          path_length: int, with_reverse: bool, skip_type: bool, num_jobs: int,
+          seed: int):
     ent = get_entities(dataset, model_out_directory)
     skip_p = {'www.w3.org/1999/02/22-rdf-syntax-ns#type'} if skip_type else {}
 
@@ -37,7 +37,7 @@ def train(dataset: Dataset, model_out_directory: str, epochs: int, walks: int,
         Word2Vec(epochs=epochs),
         walkers=[RandomWalker(max_walks=walks, max_depth=path_length,
                               random_state=seed, with_reverse=with_reverse,
-                              n_jobs=cpu_count())],
+                              n_jobs=num_jobs)],
         verbose=1
     )
 
