@@ -1,7 +1,7 @@
-from multiprocessing import cpu_count
-
 import os.path as path
+from random import choices
 
+import numpy as np
 import pandas as pd
 import torch
 
@@ -77,9 +77,18 @@ def train(dataset: Dataset, model_out_directory: str, k: int,
 
 
 def train_hpo(dataset: Dataset, model_out_directory: str, trials: int,
-              seed: int):
+              seed: int, subsampling: float = 1.0):
+
+    if subsampling <= 0.0 or subsampling > 1.0:
+        raise ValueError("subsampling value is out of range")
+    elif subsampling == 1.0:
+        stmt = collect_statements(dataset, model_out_directory)
+    else:
+        stmt = collect_statements(dataset, model_out_directory).tolist()
+        stmt = np.array(choices(stmt, k=int(len(stmt) * subsampling)))
+
     kg = TriplesFactory.from_labeled_triples(
-        triples=collect_statements(dataset, model_out_directory),
+        triples=stmt,
         create_inverse_triples=False)
 
     training, testing, validation = kg.split([.8, .1, .1], random_state=seed)

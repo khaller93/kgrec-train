@@ -32,9 +32,10 @@ def trans_e_cmd(dim: int = 64, scoring_fct_norm: int = 1, epochs: int = 10,
 @app.command(name='transe-hpo', help='tune parameters and train transE '
                                      'embeddings with best found parameters')
 def trans_e_hpo_cmd(trials: int = 10, model_out_directory: str = 'model',
-                    dataset: str = 'pokemon', seed: int = 133):
+                    dataset: str = 'pokemon', seed: int = 133,
+                    subsampling: float = 1.0):
     transe.train_hpo(parse(dataset), model_out_directory, trials=trials,
-                     seed=seed)
+                     seed=seed, subsampling=subsampling)
 
 
 if __name__ == '__main__':
