@@ -1,7 +1,7 @@
-FROM python:3.9.14-buster
+FROM python:3.9-buster
 
 LABEL maintainer="Kevin Haller <contact@kevinhaller.dev>"
-LABEL description="Application that enables experiments with KG-based recommendation. It provides a command line interface to train models, analyse the results and recommend items based on a user-item KG."
+LABEL description="Application that enables experiments with KG-based recommendation. It provides a command line interface to train models."
 
 RUN adduser --disabled-password --gecos '' ohm
 
