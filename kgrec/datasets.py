@@ -1,39 +1,129 @@
-from enum import Enum
+import numpy as np
+import pandas as pd
+
+from os.path import join, dirname, exists
+from typing import Sequence
 
 
-class Dataset(Enum):
-    Pokemon = 1
-    DBpedia100k = 2
+def _get_data_dir(name: str) -> str:
+    """
+    gets the path to the data directory with the kg.
 
-    @property
-    def sparql_endpoint(self):
-        if self == Dataset.Pokemon:
-            return 'https://pokemonkg.kevinhaller.dev/sparql'
-        elif self == Dataset.DBpedia100k:
-            return 'https://dbpedia100k.kevinhaller.dev/sparql'
-        else:
-            raise ValueError('no sparql endpoint known for %s' % self.name)
+    :param name: name of the dataset.
+    :return: the path of the data directory with the kg.
+    """
+    return join(dirname(dirname(__file__)), 'data', name)
 
-    @property
-    def default_graph(self):
-        return None
 
-    @property
-    def statements_file(self):
-        if self == Dataset.DBpedia100k:
-            return '22-03-dbpedia-all.tsv.gz', \
-                   'https://kevinhaller.dev/datasets/dbpedia/100k/22-03-dbpedia-all.tsv.gz'
-        elif self == Dataset.Pokemon:
-            return 'poke-a-all.tsv.gz', \
-                   'https://pokemonkg.org/download/dump/poke-a-all.tsv.gz'
-        else:
+class Dataset:
+    """ a dataset representing a KG to train recommendations on """
+
+    @staticmethod
+    def supported_datasets() -> Sequence[str]:
+        """
+        gets the names of supported datasets.
+
+        :return: a sequence of names of supported datasets.
+        """
+        return ['dbpedia', 'dbpedia100k', 'pokemon']
+
+    @staticmethod
+    def get_dataset_for(name: str):
+        """
+        gets the dataset known under the specified name. If no such dataset is
+        known, then None will be returned.
+
+        :param name: name of dataset that shall be returned.
+        :return: dataset known under this name, or None, if no supported dataset
+        isn't specified under this name.
+        """
+        name = name.lower()
+        if name not in Dataset.supported_datasets():
             return None
+        return Dataset(name)
 
+    def __init__(self, name: str):
+        """
+        creates a new dataset with the given unique name.
 
-def parse(dataset: str) -> Dataset:
-    if dataset.lower() == Dataset.Pokemon.name.lower():
-        return Dataset.Pokemon
-    elif dataset.lower() == Dataset.DBpedia100k.name.lower():
-        return Dataset.DBpedia100k
-    else:
-        raise ValueError('the dataset "%s" is unknown' % dataset)
+        :param name: unique name of this dataset.
+        """
+        self.name = name
+        self._index = None
+        self._relevant_entities = None
+        self._statements = None
+
+    @property
+    def index(self) -> pd.DataFrame:
+        """
+        gets the index (number -> IRI) of the KG for this dataset.
+
+        :return: pandas dataframe of the number -> IRI index.
+        """
+        if self._index is None:
+            self._index = pd.read_csv(join(_get_data_dir(self.name),
+                                           'index.tsv.gz'),
+                                      names=['index', 'iri'],
+                                      sep='\t', header=None,
+                                      compression='gzip').set_index('index')
+        return self._index
+
+    def get_index_for(self, iri: str) -> int:
+        """
+        gets the index number for the specified IRI. -1 will be returned, if
+        the specified iri can't be found.
+
+        :param iri: for which the index shall be fetched.
+        :return: index of the given iri, or -1, if this iri can't be found.
+        """
+        index_list = self.index.index[self._index['iri'] == iri].tolist()
+        if len(index_list) == 0:
+            return -1
+        return index_list[0]
+
+    @property
+    def relevant_entities(self) -> pd.DataFrame:
+        """
+        gets the relevant entities, which are of interest for fetching vectors
+        in the latent space.
+
+        :return: pandas dataframe of relevant entities.
+        """
+        if self._relevant_entities is None:
+            ent_f = join(_get_data_dir(self.name), 'relevant_entities.tsv.gz')
+            if exists(ent_f):
+                df = pd.read_csv(ent_f, names=['iri'], sep='\t', header=None,
+                                 compression='gzip')
+                idf = self.index.copy()
+                idf['key_index'] = idf.index
+                df['key_index'] = df[['iri']] \
+                    .merge(idf, on='iri', how='left')['key_index']
+                df = df[df['key_index'].notnull()]
+                df['key_index'] = df['key_index'].astype(np.int)
+                df = df.reset_index(drop=True)
+                self._relevant_entities = df
+            else:
+                df = self.index.copy()
+                df['key_index'] = df.index
+                self._relevant_entities = df
+        return self._relevant_entities
+
+    @property
+    def statements(self) -> pd.DataFrame:
+        """
+        gets the statements of the KG for this dataset.
+
+        :return: pandas dataframe of statements of the KG for this dataset.
+        """
+        if self._statements is None:
+            self._statements = pd.read_csv(join(_get_data_dir(self.name),
+                                                'statements.tsv.gz'),
+                                           names=['subj', 'pred', 'obj'],
+                                           sep='\t', header=None,
+                                           compression='gzip')
+        return self._statements
+
+    def free(self):
+        """ frees the resources loaded for this dataset """
+        self._index = None
+        self._statements = None
