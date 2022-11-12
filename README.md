@@ -1,19 +1,18 @@
 # KG-based recommendation
 
 This application aims to enable experiments with KG-based recommendation. It
-provides a command line interface to train models, analyse the results
-and recommend items based on a user-item KG.
+provides a command line interface to train models.
 
 ## Installation
 
-A modern Python version (>=3.9) is needed for this application. The
+A modern Python version (>=3.8) is needed for this application. The
 required Python packages are specified in the `requirements.txt` and can be
 installed with pip.
 
 ```bash
 $ python -m venv venv
 $ source venv/bin/activate
-$ pip install -r requirements.txt
+(venv) $ pip install -r requirements.txt
 ```
 
 Then, the application can be run in this environment by executing
@@ -25,28 +24,32 @@ the main Python file.
 
 ## Usage
 
-This application can be used to train embeddings, compute similarity metrics
-and analyse the 
+This application can be used to train embeddings.
 
 ### Specify custom dataset
 
 A custom dataset can be added by editing the `datasets.py` file in the
 root directory. The application is designed to access the knowledge graph
-over a SPARQL endpoint.
+over TSV files. The following files are expected:
+* a file named `index.tsv.gz`, which is the index map of number to IRI 
+compressed with GZip.
+* a file named `statements.tsv.gz`, which is a list of statements (i.e. triples)
+of the KG with the index number representing the actual IRI of entities. It only
+includes statements with resources (i.e. no literals) as objects.
 
-Thus, a dataset is defined by a SPARQL endpoint URL. Optionally, also the
-default named graph can be specified as well as named graphs to ignore in the
-fetching of entities and statements.
+Optionally, these file can be provided:
+* a file named `relevant_entities.tsv.gz`, which is a list of relevant entities.
 
 ### Train/Compute Models
 
+| **Embeddings** | **Similarity Metrics**                                     |
+| -------------- |------------------------------------------------------------|
+| rdf2vec        | *Linked Data Semantic Distance (needs to be implemented!)* |
+| transE         |                                                            |
 
-| **Embeddings** | **Similarity Metrics**        |
-| -------------- | ----------------------------- |
-| rdf2vec        | Linked Data Semantic Distance |
-| transE         |                               |
+#### Embeddings
 
-#### Train rdf2vec Embedding
+**(A) Train rdf2vec Embedding**
 
 ```
 Usage: main.py train rdf2vec [OPTIONS]
@@ -66,7 +69,7 @@ Options:
 
 ```
 
-#### Train transE Embedding
+**(B) Train transE Embedding**
 
 ```
 Usage: main.py train transe [OPTIONS]
@@ -85,7 +88,7 @@ Options:
   --dataset TEXT              [default: pokemon]
 ```
 
-##### Hyperparameter Tuning for transE
+**(C) Hyperparameter Tuning for transE**
 
 Parameters can be tuned for transE using link-prediction train, test and
 validation sets. Then we can assume that a good parameter for link prediction
@@ -103,9 +106,12 @@ Options:
   --dataset TEXT              [default: pokemon]
 ```
 
-#### Compute LDSD Metric
+#### Similarity Metrics
 
-The similarity metric LDSD hasn't any hyperparameter to choose.
+**(1) Compute LDSD Metric**
+
+The similarity metric LDSD hasn't any hyperparameter to choose. This option was
+removed temporarily, because of the new approach of storing the KG in TSV files.
 
 ```
 Usage: main.py compute ldsd [OPTIONS]
