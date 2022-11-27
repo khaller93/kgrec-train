@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 import logging
+import requests
+
 from os import makedirs
-
-import requests as requests
-
 from os.path import join, dirname, exists
 from sys import stdout
 
@@ -28,8 +27,9 @@ if __name__ == '__main__':
                             'The file "%s" is downloaded for "%s" ...'
                             % (filename, ds))
                 response = requests.get(join(url, ds, filename))
-                with open(file_path, 'wb') as f:
-                    f.write(response.content)
+                if 200 < response.status_code < 300:
+                    with open(file_path, 'wb') as f:
+                        f.write(response.content)
             else:
                 logging.log(logging.INFO,
                             'The file "%s" was already downloaded for "%s"'
