@@ -8,7 +8,7 @@ from sys import stdout
 
 url = 'https://kevinhaller.dev/datasets/embeddings'
 
-datasets = ['dbpedia', 'dbpedia100k', 'dbpedia1M', 'pokemon']
+datasets = ['dbpedia', 'dbpedia100k', 'dbpedia1m', 'pokemon']
 
 if __name__ == '__main__':
     logging.basicConfig(stream=stdout, format='%(levelname)s:\t%(message)s',
