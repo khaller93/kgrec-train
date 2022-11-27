@@ -27,7 +27,7 @@ if __name__ == '__main__':
                             'The file "%s" is downloaded for "%s" ...'
                             % (filename, ds))
                 response = requests.get(join(url, ds, filename))
-                if 200 < response.status_code < 300:
+                if 200 <= response.status_code < 300:
                     with open(file_path, 'wb') as f:
                         f.write(response.content)
             else:
