@@ -1,18 +1,28 @@
 import numpy as np
 import pandas as pd
 
+from os import listdir
 from os.path import join, dirname, exists
 from typing import Sequence
 
 
-def _get_data_dir(name: str) -> str:
+def _get_data_dir() -> str:
     """
-    gets the path to the data directory with the kg.
+    gets the path to the data directory with the datasets.
+
+    :return: the path of the data directory with the datasets.
+    """
+    return join(dirname(dirname(__file__)), 'data')
+
+
+def _get_dataset_dir(name: str) -> str:
+    """
+    gets the path to the dataset directory with the kg.
 
     :param name: name of the dataset.
-    :return: the path of the data directory with the kg.
+    :return: the path of the dataset directory with the kg.
     """
-    return join(dirname(dirname(__file__)), 'data', name)
+    return join(_get_data_dir(), name)
 
 
 class Dataset:
@@ -25,7 +35,7 @@ class Dataset:
 
         :return: a sequence of names of supported datasets.
         """
-        return ['dbpedia', 'dbpedia100k', 'pokemon']
+        return listdir(_get_data_dir())
 
     @staticmethod
     def get_dataset_for(name: str):
@@ -61,7 +71,7 @@ class Dataset:
         :return: pandas dataframe of the number -> IRI index.
         """
         if self._index is None:
-            self._index = pd.read_csv(join(_get_data_dir(self.name),
+            self._index = pd.read_csv(join(_get_dataset_dir(self.name),
                                            'index.tsv.gz'),
                                       names=['index', 'iri'],
                                       sep='\t', header=None,
@@ -90,7 +100,7 @@ class Dataset:
         :return: pandas dataframe of relevant entities.
         """
         if self._relevant_entities is None:
-            ent_f = join(_get_data_dir(self.name), 'relevant_entities.tsv.gz')
+            ent_f = join(_get_dataset_dir(self.name), 'relevant_entities.tsv.gz')
             if exists(ent_f):
                 df = pd.read_csv(ent_f, names=['iri'], sep='\t', header=None,
                                  compression='gzip')
@@ -116,7 +126,7 @@ class Dataset:
         :return: pandas dataframe of statements of the KG for this dataset.
         """
         if self._statements is None:
-            self._statements = pd.read_csv(join(_get_data_dir(self.name),
+            self._statements = pd.read_csv(join(_get_dataset_dir(self.name),
                                                 'statements.tsv.gz'),
                                            names=['subj', 'pred', 'obj'],
                                            sep='\t', header=None,
