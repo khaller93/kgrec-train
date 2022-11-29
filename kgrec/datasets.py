@@ -64,6 +64,15 @@ class Dataset:
         self._statements = None
 
     @property
+    def capitalized_name(self):
+        """
+        gets the capitalized name of this dataset.
+
+        :return: capitalized name of this dataset.
+        """
+        return self.name.capitalize()
+
+    @property
     def index(self) -> pd.DataFrame:
         """
         gets the index (number -> IRI) of the KG for this dataset.
