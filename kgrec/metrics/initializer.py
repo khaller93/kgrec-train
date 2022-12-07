@@ -71,11 +71,13 @@ class LocalNeo4JInstance:
         return GraphDatabase.driver('bolt://127.0.0.1:7687',
                                     auth=('neo4j', 'test'))
 
-    def construct_data_importer(self, dataset: Dataset):
+    def construct_data_importer(self, dataset: Dataset) -> 'DatasetImporter':
         """
+        constructs a data importer for the dataset with which the data of this
+        specified dataset can be imported into this Neo4J instance.
 
-        :param dataset:
-        :return:
+        :param dataset: for which a data importer shall be constructed.
+        :return: the constructed data importer.
         """
         return DatasetImporter(neo4j_instance=self, dataset=dataset)
 
@@ -91,6 +93,7 @@ class LocalNeo4JInstance:
                             ('127.0.0.1:7474', '7474'),
                         ],
                         envs={
+                            'NEO$J_AUTH': 'neo4j/test',
                             'NEO4J_dbms_memory_pagecache_size': '%dG' % ps,
                             'NEO4J_dbms.memory.heap.initial_size': '%dG' % mm,
                             'NEO4J_dbms_memory_heap_max_size': '%dG' % mm,
@@ -108,6 +111,7 @@ class LocalNeo4JInstance:
                        '--database', 'neo4j',
                        '--nodes', '/import/entities.csv',
                        '--relationships', '/import/statements.csv',
+                       '--id-type', 'INTEGER',
                        '--force',
                    ])
 
