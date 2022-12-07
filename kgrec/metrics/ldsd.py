@@ -14,35 +14,35 @@ from kgrec.metrics.metrics import SimilarityMetric, Pair, TSVWriter
 
 _neighbourhood_query = '''
     OPTIONAL MATCH (x:$label)-[p]->(y:$label) 
-    WHERE x.tsv_id = $id
+    WHERE x.tsvID = $id
     WITH TYPE(p) as prop, collect(y) as do, count(distinct y) as cnt
     UNWIND do as neighbour
-    RETURN neighbour.tsv_id as neighbour, prop, 1 as type, cnt
+    RETURN neighbour.tsvID as neighbour, prop, 1 as type, cnt
     
     UNION
     
     OPTIONAL MATCH (y:$label)-[p]->(x:$label) 
-    WHERE x.tsv_id = $id
+    WHERE x.tsvID = $id
     WITH TYPE(p) as prop, collect(y) as di, count(distinct y) as cnt
     UNWIND di as neighbour
-    RETURN neighbour.tsv_id as neighbour, prop, 2 as type, cnt
+    RETURN neighbour.tsvID as neighbour, prop, 2 as type, cnt
     
     UNION
     
     OPTIONAL MATCH (x:$label)-[p]->(a:$label)<-[pv]-(y:$label)
-    WHERE x.tsv_id = $id and TYPE(p) = TYPE(pv)
+    WHERE x.tsvID = $id and TYPE(p) = TYPE(pv)
     WITH TYPE(p) as prop, collect(y) as dio, count(distinct y) as cnt
     UNWIND dio as neighbour
-    RETURN neighbour.tsv_id as neighbour, prop, 3 as type, cnt
+    RETURN neighbour.tsvID as neighbour, prop, 3 as type, cnt
     
     
     UNION
     
     OPTIONAL MATCH (x:$label)<-[p]-(a:$label)-[pv]->(y:$label)
-    WHERE x.tsv_id = $id and TYPE(p) = TYPE(pv)
+    WHERE x.tsvID = $id and TYPE(p) = TYPE(pv)
     WITH TYPE(p) as prop, collect(y) as dii, count(distinct y) as cnt
     UNWIND dii as neighbour
-    RETURN neighbour.tsv_id as neighbour, prop, 4 as type, cnt
+    RETURN neighbour.tsvID as neighbour, prop, 4 as type, cnt
     
     ORDER BY neighbour, prop, type
 '''
