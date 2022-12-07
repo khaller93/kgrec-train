@@ -3,6 +3,4 @@ venv**
 __pycache__
 model
 data
-logs
-conf
-plugins
+deployment/neo4j
