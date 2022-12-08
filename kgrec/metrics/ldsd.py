@@ -12,14 +12,14 @@ from multiprocessing import Pool, Queue, Value
 
 from kgrec.datasets import Dataset
 from kgrec.metrics.graphdb import Neo4JDetails
-from kgrec.metrics.metrics import SimilarityMetric, Pair, TSVWriter
+from kgrec.metrics.metrics import SimilarityMetric, Pair
 
 _neighbourhood_query = '''
     OPTIONAL MATCH (x:$label)-[p]->(y:$label) 
     WHERE x.tsvID = $id
     WITH TYPE(p) as prop, collect(y) as do, count(distinct y) as cnt
     UNWIND do as neighbour
-    RETURN neighbour.tsvID as neighbour, prop, 1 as type, cnt
+    RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 1 as type, cnt
     
     UNION
     
@@ -27,7 +27,7 @@ _neighbourhood_query = '''
     WHERE x.tsvID = $id
     WITH TYPE(p) as prop, collect(y) as di, count(distinct y) as cnt
     UNWIND di as neighbour
-    RETURN neighbour.tsvID as neighbour, prop, 2 as type, cnt
+    RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 2 as type, cnt
     
     UNION
     
@@ -35,7 +35,7 @@ _neighbourhood_query = '''
     WHERE x.tsvID = $id and TYPE(p) = TYPE(pv)
     WITH TYPE(p) as prop, collect(y) as dio, count(distinct y) as cnt
     UNWIND dio as neighbour
-    RETURN neighbour.tsvID as neighbour, prop, 3 as type, cnt
+    RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 3 as type, cnt
     
     
     UNION
@@ -44,12 +44,12 @@ _neighbourhood_query = '''
     WHERE x.tsvID = $id and TYPE(p) = TYPE(pv)
     WITH TYPE(p) as prop, collect(y) as dii, count(distinct y) as cnt
     UNWIND dii as neighbour
-    RETURN neighbour.tsvID as neighbour, prop, 4 as type, cnt
+    RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 4 as type, cnt
     
     ORDER BY neighbour, prop, type
 '''
 
-Neighbour = namedtuple('Neighbour', 'id props')
+Neighbour = namedtuple('Neighbour', 'id key props')
 Property = namedtuple('Property', 'id values')
 
 
@@ -91,6 +91,7 @@ class ResultIterator(Iterable, ABC):
         record = next(self.r, None)
         while record is not None:
             neighbour_id = record['neighbour']
+            neighbour_key = record['key']
             props = []
             while record is not None and record['neighbour'] == neighbour_id:
                 property_id = record['prop']
@@ -101,7 +102,7 @@ class ResultIterator(Iterable, ABC):
                                                        val_map=val_map)
                     props.append(t)
                     record = next(self.r, None)
-            yield Neighbour(neighbour_id, props)
+            yield Neighbour(neighbour_id, neighbour_key, props)
 
 
 class CounterListener:
@@ -125,6 +126,8 @@ class CounterListener:
         return self
 
     def _observe(self):
+        """ observes the counter which is shared among multiple processes and
+         updates the progress bar accordingly """
         while not self._closed:
             with self._counter.get_lock():
                 n = self._counter.value
@@ -138,6 +141,7 @@ class CounterListener:
 
 
 class _Payload:
+    """ a payload for computing LDSD metric """
 
     def __init__(self, dataset_name: str, neo4j_details: Neo4JDetails):
         self.dataset_name = dataset_name
@@ -187,22 +191,23 @@ class LDSD(SimilarityMetric):
     @staticmethod
     def _run_computation(payload: _Payload):
         with payload.driver.session() as session:
-            for x_id in payload.chunk:
+            for x_id, key in payload.chunk:
                 neighbours = session.write_transaction(
-                    LDSD._collect_neighbours, x_id, payload.dataset_name,
+                    LDSD._collect_neighbours, int(x_id), payload.dataset_name,
                 )
-                pairs = [Pair(x_id, neighbour.id,
+                pairs = [Pair(key, neighbour.key,
                               LDSD._compute_metric_value(neighbour))
-                         for neighbour in neighbours]
-                pairs.append(Pair(x_id, x_id, np.float(0.0)))
+                         for neighbour in neighbours if neighbour.key != -1]
+                pairs.append(Pair(key, key, np.float(0.0)))
                 _pair_queue.put(pairs)
                 with _counter.get_lock():
                     _counter.value += 1
 
     def _compute_pairs(self, queue: Queue):
-        index_values = self.dataset.index.index
+        values = [(row['key_index'], int(i)) for i, row in
+                  self.dataset.relevant_entities.iterrows()]
         ds_name = self.dataset.capitalized_name
-        with pb.ProgressBar(max_value=len(index_values)) as progress_bar:
+        with pb.ProgressBar(max_value=len(values)) as progress_bar:
             counter = Value('i', 0)
             with CounterListener(counter=counter, progress_bar=progress_bar):
                 with Pool(processes=self._num_of_jobs,
@@ -210,5 +215,5 @@ class LDSD(SimilarityMetric):
                           initargs=(queue, counter,)) as p:
                     payload = _Payload(ds_name, self._neo4j_details)
                     params = [payload.with_chunk(chunk) for chunk in
-                              np.array_split(index_values, self._num_of_jobs)]
+                              np.array_split(values, self._num_of_jobs)]
                     p.map(self._run_computation, params)

@@ -183,10 +183,13 @@ class DatasetImporter:
         """
         with open(entities_file_path, 'w') as entities_csv_file:
             writer = csv.writer(entities_csv_file, delimiter=',')
-            writer.writerow(['tsvID:ID', ':LABEL'])
+            writer.writerow(['tsvID:ID', 'rvKey:int', ':LABEL'])
             cap_name = self._neo4j_instance.dataset.capitalized_name
+            rv_df = self._neo4j_instance.dataset.relevant_entities
             for tsv_id in self._neo4j_instance.dataset.index.index.values:
-                writer.writerow([tsv_id, cap_name])
+                rv_ids = rv_df[rv_df['key_index'] == tsv_id].index.values
+                writer.writerow(
+                    [tsv_id, rv_ids[0] if len(rv_ids) == 1 else -1, cap_name])
 
     def _write_statements(self, statements_file_path: str):
         """
