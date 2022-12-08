@@ -26,6 +26,9 @@ class Neo4JDetails:
         self.auth = auth
 
 
+_neo4j_local_passwd = 'test'
+
+
 class LocalNeo4JInstance:
     """ a local instance of Neo4J """
 
@@ -116,7 +119,7 @@ class LocalNeo4JInstance:
                             ('127.0.0.1:7474', '7474'),
                         ],
                         envs={
-                            'NEO$J_AUTH': 'neo4j/test',
+                            'NEO4J_AUTH': 'neo4j/%s' % _neo4j_local_passwd,
                             'NEO4J_dbms_memory_pagecache_size': '%dG' % ps,
                             'NEO4J_dbms.memory.heap.initial_size': '%dG' % mm,
                             'NEO4J_dbms_memory_heap_max_size': '%dG' % mm,
