@@ -1,15 +1,17 @@
+import time
+
 import numpy as np
 import progressbar as pb
 import threading
 
 from abc import ABC
 from collections import namedtuple
-from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 from typing import Sequence, Mapping, Iterable
-from neo4j import Neo4jDriver, Result
-from progressbar import ProgressBar
+from neo4j import Result, GraphDatabase, Neo4jDriver
+from multiprocessing import Pool, Queue, Value
 
 from kgrec.datasets import Dataset
+from kgrec.metrics.graphdb import Neo4JDetails
 from kgrec.metrics.metrics import SimilarityMetric, Pair, TSVWriter
 
 _neighbourhood_query = '''
@@ -102,35 +104,64 @@ class ResultIterator(Iterable, ABC):
             yield Neighbour(neighbour_id, props)
 
 
-class Counter:
-    """ a counter to keep track of processed entities (thread-safe) """
+class CounterListener:
+    """ a counter to keep track of processed entities """
 
-    def __init__(self, progress_bar: ProgressBar):
+    def __init__(self, counter: Value, progress_bar: pb.ProgressBar):
         """
-        creates a thread-safe wrapper for the progress bar.
+        creates a listener for the counter used by multiple threads.
 
+        :param counter: a counter value that shall be observed.
         :param progress_bar: for which this counter is a thread-safe wrapper.
         """
+        self._counter = counter
         self._progress_bar = progress_bar
-        self._lock = threading.Lock()
-        self._n = 0
+        self._t = None
+        self._closed = False
 
-    def increment(self):
-        """ indicates that another entity was processed """
-        self._lock.acquire()
-        try:
-            self._n += 1
-            self._progress_bar.update(self._n)
-        finally:
-            self._lock.release()
+    def __enter__(self):
+        self._t = threading.Thread(target=self._observe)
+        self._t.start()
+        return self
+
+    def _observe(self):
+        while not self._closed:
+            with self._counter.get_lock():
+                n = self._counter.value
+                if n > 0:
+                    self._progress_bar.update(n)
+            time.sleep(0.1)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._closed = True
+        self._t.join()
+
+
+class _Payload:
+
+    def __init__(self, dataset_name: str, neo4j_details: Neo4JDetails):
+        self.dataset_name = dataset_name
+        self.neo4j_details = neo4j_details
+        self.chunk = None
+
+    @property
+    def driver(self) -> Neo4jDriver:
+        return GraphDatabase.driver(self.neo4j_details.url,
+                                    auth=self.neo4j_details.auth)
+
+    def with_chunk(self, chunk: Sequence[int]):
+        obj = _Payload(self.dataset_name, self.neo4j_details)
+        obj.chunk = chunk
+        return obj
 
 
 class LDSD(SimilarityMetric):
     """ this class implements Linked Data Semantic Distance """
 
-    def __init__(self, dataset: Dataset, neo4j_driver: Neo4jDriver,
+    def __init__(self, neo4j_details: Neo4JDetails, dataset: Dataset,
                  num_of_jobs: int = 1):
-        super(LDSD, self).__init__('ldsd', dataset, neo4j_driver)
+        super(LDSD, self).__init__('ldsd', dataset)
+        self._neo4j_details = neo4j_details
         self._num_of_jobs = num_of_jobs
 
     @staticmethod
@@ -146,27 +177,38 @@ class LDSD(SimilarityMetric):
                 link_values[k - 1] += v
         return np.float(1.0) / (np.float(1.0) + np.sum(link_values))
 
-    def _run_computation(self, x_ids: Sequence[int], c: Counter,
-                         writer: TSVWriter):
-        with self.driver.session() as session:
-            for x_id in x_ids:
+    @staticmethod
+    def _export_global_vars(queue: Queue, counter: Value):
+        global _pair_queue
+        global _counter
+        _pair_queue = queue
+        _counter = counter
+
+    @staticmethod
+    def _run_computation(payload: _Payload):
+        with payload.driver.session() as session:
+            for x_id in payload.chunk:
                 neighbours = session.write_transaction(
-                    self._collect_neighbours, x_id,
-                    self.dataset.capitalized_name,
+                    LDSD._collect_neighbours, x_id, payload.dataset_name,
                 )
                 pairs = [Pair(x_id, neighbour.id,
-                              self._compute_metric_value(neighbour))
+                              LDSD._compute_metric_value(neighbour))
                          for neighbour in neighbours]
                 pairs.append(Pair(x_id, x_id, np.float(0.0)))
-                writer.push_pairs(pairs)
-                c.increment()
+                _pair_queue.put(pairs)
+                with _counter.get_lock():
+                    _counter.value += 1
 
-    def _compute_pairs(self, writer: TSVWriter):
+    def _compute_pairs(self, queue: Queue):
         index_values = self.dataset.index.index
+        ds_name = self.dataset.capitalized_name
         with pb.ProgressBar(max_value=len(index_values)) as progress_bar:
-            c = Counter(progress_bar=progress_bar)
-            with ThreadPoolExecutor(max_workers=self._num_of_jobs) as pool:
-                futures = [pool.submit(self._run_computation, chunk, c, writer)
-                           for chunk in
-                           np.array_split(index_values, self._num_of_jobs)]
-                wait(futures, return_when=ALL_COMPLETED)
+            counter = Value('i', 0)
+            with CounterListener(counter=counter, progress_bar=progress_bar):
+                with Pool(processes=self._num_of_jobs,
+                          initializer=LDSD._export_global_vars,
+                          initargs=(queue, counter,)) as p:
+                    payload = _Payload(ds_name, self._neo4j_details)
+                    params = [payload.with_chunk(chunk) for chunk in
+                              np.array_split(index_values, self._num_of_jobs)]
+                    p.map(self._run_computation, params)

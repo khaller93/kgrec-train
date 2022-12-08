@@ -5,10 +5,25 @@ from os.path import join, exists
 from pathlib import Path
 from typing import Mapping, Sequence, Tuple
 
-from neo4j import GraphDatabase, Neo4jDriver
-
 from kgrec.datasets import Dataset
 from python_on_whales import docker
+
+
+class Neo4JDetails:
+    """ details object for a new Neo4J instance """
+
+    def __init__(self, url: str, auth: Tuple[str, str]):
+        """
+        creates new details object for a new Neo4J instance.
+
+        :param url: URL of the interface to the Neo4J instance. It must not be
+        `None`.
+        :param auth: a tuple of username and corresponding password for
+        accessing the Neo4J instance. This argument can be `None`, if
+        authentication is disabled on the instance.
+        """
+        self.url = url
+        self.auth = auth
 
 
 class LocalNeo4JInstance:
@@ -16,18 +31,28 @@ class LocalNeo4JInstance:
 
     version = '4.4.4'
 
-    def __init__(self, working_dir_path: str, mem_in_gb: int = 4):
+    def __init__(self, dataset: Dataset, working_dir_path: str,
+                 mem_in_gb: int = 4):
         """
         creates a new local instance of Neo4J with the working directory at the
         specified location.
 
+        :param dataset: the dataset for which the local instance shall be
+        started.
         :param working_dir_path: path to the working directory for this
         instance.
         :param mem_in_gb: memory dedicated to the Neo4J instance in GB.
         """
+        self.dataset = dataset
         self.pwd = working_dir_path
         self._max_mem = mem_in_gb
         self._container = None
+
+    def __enter__(self):
+        di = self._construct_data_importer()
+        di.load()
+        self.run()
+        return self
 
     def _get_volume_dir_paths(self) -> Mapping[str, str]:
         """
@@ -66,20 +91,18 @@ class LocalNeo4JInstance:
                 makedirs(d)
 
     @property
-    def driver(self) -> Neo4jDriver:
-        """ gets the Neo4J driver to the local database instance """
-        return GraphDatabase.driver('bolt://127.0.0.1:7687',
-                                    auth=('neo4j', 'test'))
+    def driver_details(self) -> Neo4JDetails:
+        """ gets the Neo4J driver details for this local database instance """
+        return Neo4JDetails('bolt://127.0.0.1:7687', ('neo4j', 'test'))
 
-    def construct_data_importer(self, dataset: Dataset) -> 'DatasetImporter':
+    def _construct_data_importer(self) -> 'DatasetImporter':
         """
         constructs a data importer for the dataset with which the data of this
         specified dataset can be imported into this Neo4J instance.
 
-        :param dataset: for which a data importer shall be constructed.
         :return: the constructed data importer.
         """
-        return DatasetImporter(neo4j_instance=self, dataset=dataset)
+        return DatasetImporter(neo4j_instance=self)
 
     def run(self):
         """ runs this local Neo4J instance """
@@ -120,13 +143,15 @@ class LocalNeo4JInstance:
         if self._container is not None:
             docker.container.stop(self._container)
 
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop()
+
 
 class DatasetImporter:
     """ an exporter of the dataset in a format that is understood by Neo4J """
 
-    def __init__(self, neo4j_instance: LocalNeo4JInstance, dataset: Dataset):
+    def __init__(self, neo4j_instance: LocalNeo4JInstance):
         self._neo4j_instance = neo4j_instance
-        self._dataset = dataset
 
     def load(self) -> bool:
         """
@@ -159,8 +184,8 @@ class DatasetImporter:
         with open(entities_file_path, 'w') as entities_csv_file:
             writer = csv.writer(entities_csv_file, delimiter=',')
             writer.writerow(['tsvID:ID', ':LABEL'])
-            cap_name = self._dataset.capitalized_name
-            for tsv_id in self._dataset.index.index.values:
+            cap_name = self._neo4j_instance.dataset.capitalized_name
+            for tsv_id in self._neo4j_instance.dataset.index.index.values:
                 writer.writerow([tsv_id, cap_name])
 
     def _write_statements(self, statements_file_path: str):
@@ -174,27 +199,5 @@ class DatasetImporter:
         with open(statements_file_path, 'w') as statements_csv_file:
             writer = csv.writer(statements_csv_file, delimiter=',')
             writer.writerow([':START_ID', ':END_ID', ':TYPE'])
-            for _, row in self._dataset.statements.iterrows():
+            for _, row in self._neo4j_instance.dataset.statements.iterrows():
                 writer.writerow([row['subj'], row['obj'], 'P%d' % row['pred']])
-
-
-class GraphDB:
-    """ Initializer for Neo4J, which loads the statements into the database """
-
-    def __init__(self, neo4j_instance: LocalNeo4JInstance, dataset: Dataset):
-        self._neo4j_instance = neo4j_instance
-        self._dataset = dataset
-
-    def __enter__(self):
-        di = self._neo4j_instance.construct_data_importer(self._dataset)
-        di.load()
-        self._neo4j_instance.run()
-        return self
-
-    @property
-    def driver(self) -> Neo4jDriver:
-        """ gets the Neo4J driver to the database instance """
-        return self._neo4j_instance.driver
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self._neo4j_instance.stop()
