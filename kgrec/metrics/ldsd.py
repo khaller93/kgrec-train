@@ -150,7 +150,7 @@ class _Payload:
 
     @property
     def driver(self) -> Neo4jDriver:
-        return GraphDatabase.driver(self.neo4j_details.url,
+        return GraphDatabase.driver(self.neo4j_details.bolt_url,
                                     auth=self.neo4j_details.auth)
 
     def with_chunk(self, chunk: Sequence[int]):

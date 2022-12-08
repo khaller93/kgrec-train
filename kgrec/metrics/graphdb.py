@@ -12,17 +12,19 @@ from python_on_whales import docker
 class Neo4JDetails:
     """ details object for a new Neo4J instance """
 
-    def __init__(self, url: str, auth: Tuple[str, str]):
+    def __init__(self, browser_url: str, bolt_url: str, auth: Tuple[str, str]):
         """
         creates new details object for a new Neo4J instance.
 
-        :param url: URL of the interface to the Neo4J instance. It must not be
-        `None`.
+        :param browser_url: URL of the browser interface to the Neo4J instance.
+        :param bolt_url: URL of the interface to the Neo4J instance. It must not
+        be `None`.
         :param auth: a tuple of username and corresponding password for
         accessing the Neo4J instance. This argument can be `None`, if
         authentication is disabled on the instance.
         """
-        self.url = url
+        self.bolt_url = bolt_url
+        self.browser_url = browser_url
         self.auth = auth
 
 
@@ -96,7 +98,8 @@ class LocalNeo4JInstance:
     @property
     def driver_details(self) -> Neo4JDetails:
         """ gets the Neo4J driver details for this local database instance """
-        return Neo4JDetails('bolt://127.0.0.1:7687', ('neo4j', 'test'))
+        return Neo4JDetails('http://127.0.0.1:7474', 'bolt://127.0.0.1:7687',
+                            ('neo4j', _neo4j_local_passwd))
 
     def _construct_data_importer(self) -> 'DatasetImporter':
         """
