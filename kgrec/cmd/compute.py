@@ -16,30 +16,32 @@ app.add_typer(db, name='db')
 
 @app.command(name='ldsd', help='compute the LDSD metric')
 def compute_ldsd(dataset: str = 'pokemon', model_out_directory: str = 'model',
-                 number_of_jobs: int = 1):
+                 max_memory: int = 4, number_of_jobs: int = 1):
     ds = Dataset.get_dataset_for(dataset)
     if ds is None:
         print('err: the given dataset "%s" isn\'t supported' % dataset,
               file=stderr)
         exit(1)
 
-    with LocalNeo4JInstance(dataset=ds, working_dir_path='deployment/neo4j/%s'
-                                                         % ds.name) as inst:
+    with LocalNeo4JInstance(dataset=ds, mem_in_gb=max_memory,
+                            working_dir_path='deployment/neo4j/%s' % ds.name) \
+            as inst:
         metric = LDSD(neo4j_details=inst.driver_details, dataset=ds,
                       num_of_jobs=number_of_jobs)
         metric.compute(model_out_directory)
 
 
 @db.command(name='start', help='compute the LDSD metric')
-def start_graph_db(dataset: str = 'pokemon'):
+def start_graph_db(dataset: str = 'pokemon', max_memory: int = 4):
     ds = Dataset.get_dataset_for(dataset)
     if ds is None:
         print('err: the given dataset "%s" isn\'t supported' % dataset,
               file=stderr)
         exit(1)
 
-    with LocalNeo4JInstance(dataset=ds, working_dir_path='deployment/neo4j/%s'
-                                                         % ds.name) as inst:
+    with LocalNeo4JInstance(dataset=ds, mem_in_gb=max_memory,
+                            working_dir_path='deployment/neo4j/%s' % ds.name) \
+            as inst:
         details = inst.driver_details
         print('''Neo4J instance for dataset "%s":
 \tBrowser URL:\t\t%s
