@@ -5,6 +5,8 @@ from os.path import join, exists
 from pathlib import Path
 from typing import Mapping, Sequence, Tuple
 
+from neo4j import GraphDatabase
+
 from kgrec.datasets import Dataset
 from python_on_whales import docker
 
@@ -57,6 +59,7 @@ class LocalNeo4JInstance:
         di = self._construct_data_importer()
         di.load()
         self.run()
+        di.index()
         return self
 
     def _get_volume_dir_paths(self) -> Mapping[str, str]:
@@ -174,10 +177,30 @@ class DatasetImporter:
             self._write_statements(join(import_dir, 'statements.csv'))
             self._neo4j_instance.execute_load_command()
             with open(lock_f, 'w') as f:
-                print('ok', file=f)
+                print('loaded', file=f)
             return True
         else:
             return False
+
+    def index(self) -> bool:
+        """ indexes the tsvID property of nodes """
+        lock_f = Path(join(self._neo4j_instance.pwd, 'init.lock'))
+        if 'indexed' not in lock_f.read_text():
+            details = self._neo4j_instance.driver_details
+            with GraphDatabase.driver(details.bolt_url,
+                                      auth=details.auth) as driver:
+                with driver.session() as session:
+                    c_name = self._neo4j_instance.dataset.capitalized_name
+                    session.write_transaction(self._index_unique_tsv_id, c_name)
+                    with open(str(lock_f.absolute()), 'a') as f:
+                        print('indexed', file=f)
+                        return True
+        return False
+
+    @staticmethod
+    def _index_unique_tsv_id(tx, label: str):
+        tx.run('CREATE INDEX IF NOT EXISTS FOR (n:%s) ON (n.tsvID)' % label)
+        return None
 
     def _write_entities(self, entities_file_path: str):
         """
