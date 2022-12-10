@@ -44,7 +44,7 @@ Optionally, these file can be provided:
 
 | **Embeddings** | **Similarity Metrics**                                     |
 | -------------- |------------------------------------------------------------|
-| rdf2vec        | *Linked Data Semantic Distance (needs to be implemented!)* |
+| rdf2vec        | Linked Data Semantic Distance                              |
 | transE         |                                                            |
 
 #### Embeddings
