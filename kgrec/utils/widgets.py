@@ -14,9 +14,9 @@ _default_widgets = [
 
 def widgets_with_label(label: str) -> Sequence[object]:
     """
-    gets widgets for a progress bar with the specified label as a suffix.
+    gets widgets for a progress bar with the specified label as a prefix.
 
-    :param label: that shall be written as suffix to the progress bar.
+    :param label: that shall be written as prefix to the progress bar.
     :return: a list of widgets for a progress bar.
     """
     widgets = [label]
