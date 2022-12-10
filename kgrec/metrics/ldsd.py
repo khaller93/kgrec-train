@@ -13,6 +13,7 @@ from multiprocessing import Pool, Queue, Value
 from kgrec.datasets import Dataset
 from kgrec.metrics.graphdb import Neo4JDetails
 from kgrec.metrics.metrics import SimilarityMetric, Pair
+from kgrec.utils.widgets import widgets_with_label
 
 _neighbourhood_query = '''
 OPTIONAL MATCH (x:Resource)-[p]->(y:Resource) 
@@ -206,7 +207,9 @@ class LDSD(SimilarityMetric):
         values = [(row['key_index'], int(i)) for i, row in
                   self.dataset.relevant_entities.iterrows()]
         ds_name = self.dataset.capitalized_name
-        with pb.ProgressBar(max_value=len(values)) as progress_bar:
+        with pb.ProgressBar(max_value=len(values),
+                            widgets=widgets_with_label('Compute LDSD:')
+                            ) as progress_bar:
             counter = Value('i', 0)
             with CounterListener(counter=counter, progress_bar=progress_bar):
                 with Pool(processes=self._num_of_jobs,
