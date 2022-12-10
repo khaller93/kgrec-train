@@ -108,10 +108,14 @@ Options:
 
 #### Similarity Metrics
 
+The following metrics require the graph database Neo4J to be computed. The
+application will try to use Docker to start a Neo4J instance and import the data
+for processing. Hence, Docker needs to be running, and the current user
+executing this application needs access to the Docker interface.
+
 **(1) Compute LDSD Metric**
 
-The similarity metric LDSD hasn't any hyperparameter to choose. This option was
-removed temporarily, because of the new approach of storing the KG in TSV files.
+The similarity metric LDSD hasn't any hyperparameter to choose.
 
 ```
 Usage: main.py compute ldsd [OPTIONS]
@@ -122,6 +126,11 @@ Options:
   --model-out-directory TEXT  [default: model]
   --dataset TEXT              [default: pokemon]
 ```
+
+The output of this computation is a pair of indices referring back to the 
+`entities.tsv.gz` index, and the computed value of this pair. If a pair isn't
+contained in the output, then its assumed that the value is `1.0`, which
+indicates no similarity.
 
 ## Contact
 
