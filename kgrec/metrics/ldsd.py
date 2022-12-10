@@ -15,38 +15,37 @@ from kgrec.metrics.graphdb import Neo4JDetails
 from kgrec.metrics.metrics import SimilarityMetric, Pair
 
 _neighbourhood_query = '''
-    OPTIONAL MATCH (x:$label)-[p]->(y:$label) 
-    WHERE x.tsvID = $id
-    WITH TYPE(p) as prop, collect(y) as do, count(distinct y) as cnt
-    UNWIND do as neighbour
-    RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 1 as type, cnt
+OPTIONAL MATCH (x:Resource)-[p]->(y:Resource) 
+WHERE x.tsvID = $id
+WITH TYPE(p) as prop, collect(y) as do, count(distinct y) as cnt
+UNWIND do as neighbour
+RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 1 as type, cnt
     
-    UNION
+UNION
     
-    OPTIONAL MATCH (y:$label)-[p]->(x:$label) 
-    WHERE x.tsvID = $id
-    WITH TYPE(p) as prop, collect(y) as di, count(distinct y) as cnt
-    UNWIND di as neighbour
-    RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 2 as type, cnt
+OPTIONAL MATCH (y:Resource)-[p]->(x:Resource) 
+WHERE x.tsvID = $id
+WITH TYPE(p) as prop, collect(y) as di, count(distinct y) as cnt
+UNWIND di as neighbour
+RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 2 as type, cnt
     
-    UNION
+UNION
     
-    OPTIONAL MATCH (x:$label)-[p]->(a:$label)<-[pv]-(y:$label)
-    WHERE x.tsvID = $id and TYPE(p) = TYPE(pv)
-    WITH TYPE(p) as prop, collect(y) as dio, count(distinct y) as cnt
-    UNWIND dio as neighbour
-    RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 3 as type, cnt
+OPTIONAL MATCH (x:Resource)-[p]->(a:Resource)<-[pv]-(y:Resource)
+WHERE x.tsvID = $id and TYPE(p) = TYPE(pv)
+WITH TYPE(p) as prop, collect(y) as dio, count(distinct y) as cnt
+UNWIND dio as neighbour
+RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 3 as type, cnt
+        
+UNION
     
+OPTIONAL MATCH (x:Resource)<-[p]-(a:Resource)-[pv]->(y:Resource)
+WHERE x.tsvID = $id and TYPE(p) = TYPE(pv)
+WITH TYPE(p) as prop, collect(y) as dii, count(distinct y) as cnt
+UNWIND dii as neighbour
+RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 4 as type, cnt
     
-    UNION
-    
-    OPTIONAL MATCH (x:$label)<-[p]-(a:$label)-[pv]->(y:$label)
-    WHERE x.tsvID = $id and TYPE(p) = TYPE(pv)
-    WITH TYPE(p) as prop, collect(y) as dii, count(distinct y) as cnt
-    UNWIND dii as neighbour
-    RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 4 as type, cnt
-    
-    ORDER BY neighbour, prop, type
+ORDER BY neighbour, prop, type
 '''
 
 Neighbour = namedtuple('Neighbour', 'id key props')
@@ -169,8 +168,8 @@ class LDSD(SimilarityMetric):
         self._num_of_jobs = num_of_jobs
 
     @staticmethod
-    def _collect_neighbours(tx, x_id: int, label: str) -> Sequence[Neighbour]:
-        r = tx.run(_neighbourhood_query.replace('$label', label), id=x_id)
+    def _collect_neighbours(tx, x_id: int) -> Sequence[Neighbour]:
+        r = tx.run(_neighbourhood_query, id=x_id)
         return [n for n in ResultIterator(r)]
 
     @staticmethod
@@ -193,7 +192,7 @@ class LDSD(SimilarityMetric):
         with payload.driver.session() as session:
             for x_id, key in payload.chunk:
                 neighbours = session.write_transaction(
-                    LDSD._collect_neighbours, int(x_id), payload.dataset_name,
+                    LDSD._collect_neighbours, int(x_id),
                 )
                 pairs = [Pair(key, neighbour.key,
                               LDSD._compute_metric_value(neighbour))
