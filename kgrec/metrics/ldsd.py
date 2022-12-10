@@ -17,37 +17,48 @@ from kgrec.utils.widgets import widgets_with_label
 
 _neighbourhood_query = '''
 OPTIONAL MATCH (x:Resource)-[p]->(y:Resource) 
-WHERE x.tsvID = $id
+WHERE x.tsvID = $in_id
 WITH TYPE(p) as prop, collect(y) as do, count(distinct y) as cnt
 UNWIND do as neighbour
-RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 1 as type, cnt
+RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 1 as type,
+cnt
     
 UNION
     
 OPTIONAL MATCH (y:Resource)-[p]->(x:Resource) 
-WHERE x.tsvID = $id
+WHERE x.tsvID = $in_id
 WITH TYPE(p) as prop, collect(y) as di, count(distinct y) as cnt
 UNWIND di as neighbour
-RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 2 as type, cnt
-    
+RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 2 as type,
+cnt
+
 UNION
     
 OPTIONAL MATCH (x:Resource)-[p]->(a:Resource)<-[pv]-(y:Resource)
-WHERE x.tsvID = $id and TYPE(p) = TYPE(pv)
+WHERE x.tsvID = $in_id and TYPE(p) = TYPE(pv)
 WITH TYPE(p) as prop, collect(y) as dio, count(distinct y) as cnt
 UNWIND dio as neighbour
-RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 3 as type, cnt
+RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 3 as type,
+cnt
         
 UNION
     
 OPTIONAL MATCH (x:Resource)<-[p]-(a:Resource)-[pv]->(y:Resource)
-WHERE x.tsvID = $id and TYPE(p) = TYPE(pv)
+WHERE x.tsvID = $in_id and TYPE(p) = TYPE(pv)
 WITH TYPE(p) as prop, collect(y) as dii, count(distinct y) as cnt
 UNWIND dii as neighbour
-RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 4 as type, cnt
+RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 4 as type,
+cnt
     
 ORDER BY neighbour, prop, type
 '''
+
+_query = '''
+CALL apoc.cypher.run("%s", {in_id: $id}) YIELD value
+RETURN value.neighbour as neighbour, value.key as key, value.prop as prop,
+value.type as type, value.cnt as cnt
+ORDER BY neighbour, prop, type
+''' % _neighbourhood_query.replace('\n', ' ')
 
 Neighbour = namedtuple('Neighbour', 'id key props')
 Property = namedtuple('Property', 'id values')
@@ -170,7 +181,7 @@ class LDSD(SimilarityMetric):
 
     @staticmethod
     def _collect_neighbours(tx, x_id: int) -> Sequence[Neighbour]:
-        r = tx.run(_neighbourhood_query, id=x_id)
+        r = tx.run(_query, id=x_id)
         return [n for n in ResultIterator(r)]
 
     @staticmethod
