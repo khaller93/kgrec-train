@@ -1,3 +1,4 @@
+import logging
 import time
 
 import typer
@@ -43,13 +44,12 @@ def start_graph_db(dataset: str = 'pokemon', max_memory: int = 4):
                             working_dir_path='deployment/neo4j/%s' % ds.name) \
             as inst:
         details = inst.driver_details
-        print('''Neo4J instance for dataset "%s":
-\tBrowser URL:\t\t%s
-\tBolt URL:\t\t%s
-\tAuthentication:\t\t%s/%s
-
-running... ''' % (ds.name, details.browser_url, details.bolt_url,
-                  details.auth[0], details.auth[1]))
+        logging.info('Neo4J successfully started for "%s"', ds.name)
+        logging.info('Browser URL:\t%s', details.browser_url)
+        logging.info('Bolt URL:\t\t%s', details.bolt_url)
+        logging.info('Authentication:\t%s/%s', details.auth[0],
+                     details.auth[1])
+        logging.info('running Neo4J instance until interrupted by user')
 
         while True:
             time.sleep(10)

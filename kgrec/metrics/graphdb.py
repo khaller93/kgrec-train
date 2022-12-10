@@ -1,4 +1,5 @@
 import csv
+import logging
 
 from os import makedirs
 from os.path import join, exists
@@ -58,6 +59,9 @@ class LocalNeo4JInstance:
         self._container = None
 
     def __enter__(self):
+        logging.info('aims to start the local Neo4J instance for datasets "%s"',
+                     self._dataset.name)
+        logging.info('using the directory "%s" for Neo4J instance', self._pwd)
         di = self._construct_data_importer()
         di.load(self._dataset)
         self.run()
@@ -222,12 +226,16 @@ class DatasetImporter:
                 print('loaded', file=f)
             return True
         else:
+            logging.info('data has already been loaded into Neo4J for "%s"',
+                         dataset.name)
             return False
 
     def index(self) -> bool:
         """ indexes the tsvID property of nodes """
         lock_f = Path(self._get_lock_path())
         if 'indexed' not in lock_f.read_text():
+            logging.info(
+                'indexing the tsvID property of nodes for faster querying')
             details = self._neo4j_instance.driver_details
             with GraphDatabase.driver(details.bolt_url,
                                       auth=details.auth) as driver:
@@ -253,6 +261,9 @@ class DatasetImporter:
         :param entities_file_path: path to the CSV file to which to write
         entities.
         """
+        logging.info(
+            'entities from dataset "%s" are written to "%s" in Neo4J format',
+            dataset.name, entities_file_path)
         with open(entities_file_path, 'w') as entities_csv_file:
             writer = csv.writer(entities_csv_file, delimiter=',')
             writer.writerow(['tsvID:ID', 'rvKey:int', ':LABEL'])
@@ -272,6 +283,9 @@ class DatasetImporter:
         :param statements_file_path: path to the CSV file to which to write the
         statements.
         """
+        logging.info(
+            'statements from dataset "%s" are written to "%s" in Neo4J format',
+            dataset.name, statements_file_path)
         with open(statements_file_path, 'w') as statements_csv_file:
             writer = csv.writer(statements_csv_file, delimiter=',')
             writer.writerow([':START_ID', ':END_ID', ':TYPE'])
