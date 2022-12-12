@@ -3,7 +3,6 @@ import torch
 
 from kgrec.datasets import Dataset
 from kgrec.embedding.embedding import Embedding
-from kgrec.subsampling import SubSamplingFunc, id_sub
 from os import makedirs
 from os.path import join, exists
 from pykeen.hpo import hpo_pipeline
@@ -96,8 +95,7 @@ class TransEHPO:
         return join(self.model_out_directory, self.dataset.name,
                     'hpo', 'transE')
 
-    def hpo(self, trials: int, seed: int,
-            subsampling: SubSamplingFunc = id_sub) -> TransEModel:
+    def hpo(self, trials: int, seed: int) -> TransEModel:
         """
         do hyper-parameterization with the specified number of trials, and then
         computes the TransE model for the best trial.
@@ -105,12 +103,10 @@ class TransEHPO:
         :param trials: the number of attempts for finding a good transE model.
         :param seed: random seed for the split of the KG in train, test and
         validation set.
-        :param subsampling: an optional function performing subsampling on the
-        input dataset. Per default, the whole KG is used.
         :return: the TransE model of the best trial.
         """
         # construct the KG for training
-        _, stmt = subsampling(self.dataset)
+        stmt = self.dataset.statements
         kg = TriplesFactory.from_labeled_triples(
             triples=stmt.applymap(lambda x: str(x)).values,
             create_inverse_triples=False)
