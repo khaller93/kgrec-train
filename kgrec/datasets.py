@@ -1,3 +1,6 @@
+import csv
+import gzip
+
 import numpy as np
 import pandas as pd
 
@@ -95,7 +98,7 @@ class Dataset:
         :param iri: for which the index shall be fetched.
         :return: index of the given iri, or -1, if this iri can't be found.
         """
-        index_list = self.index.index[self._index['iri'] == iri].tolist()
+        index_list = self.index.index[self.index.index['iri'] == iri].tolist()
         if len(index_list) == 0:
             return -1
         return index_list[0]
@@ -141,6 +144,18 @@ class Dataset:
                                            sep='\t', header=None,
                                            compression='gzip')
         return self._statements
+
+    def statement_iterator(self):
+        """
+        gets an iterator over the statements of this dataset.
+
+        :return: an iterator over the statements of this dataset.
+        """
+        with gzip.open(join(_get_dataset_dir(self.name),
+                            'statements.tsv.gz'), 'rt') as f:
+            reader = csv.reader(f, delimiter='\t')
+            for row in reader:
+                yield [int(x) for x in row]
 
     def free(self):
         """ frees the resources loaded for this dataset """

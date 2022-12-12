@@ -289,5 +289,5 @@ class DatasetImporter:
         with open(statements_file_path, 'w') as statements_csv_file:
             writer = csv.writer(statements_csv_file, delimiter=',')
             writer.writerow([':START_ID', ':END_ID', ':TYPE'])
-            for _, row in dataset.statements.iterrows():
-                writer.writerow([row['subj'], row['obj'], 'P%d' % row['pred']])
+            for triple in dataset.statement_iterator():
+                writer.writerow([triple[0], triple[2], 'P%d' % triple[1]])
