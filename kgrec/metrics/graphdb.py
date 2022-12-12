@@ -7,12 +7,9 @@ from pathlib import Path
 from typing import Mapping, Sequence, Tuple
 
 from neo4j import GraphDatabase
-from progressbar import ProgressBar, Bar, Counter, Timer, ETA
 
 from kgrec.datasets import Dataset
 from python_on_whales import docker
-
-from kgrec.utils.widgets import widgets_with_label
 
 
 class Neo4JDetails:
@@ -271,18 +268,10 @@ class DatasetImporter:
             writer = csv.writer(entities_csv_file, delimiter=',')
             writer.writerow(['tsvID:ID', 'rvKey:int', ':LABEL'])
             rv_df = dataset.relevant_entities
-            with ProgressBar(max_value=len(dataset.index),
-                             widgets=widgets_with_label(
-                                 'Write entities:')
-                             ) as pb:
-                n = 0
-                for tsv_id in dataset.index.index.values:
-                    rv_ids = rv_df[rv_df['key_index'] == tsv_id].index.values
-                    writer.writerow(
-                        [tsv_id, rv_ids[0] if len(rv_ids) == 1 else -1,
-                         'Resource'])
-                n += 1
-                pb.update(n)
+            for tsv_id in dataset.index.index.values:
+                rv_ids = rv_df[rv_df['key_index'] == tsv_id].index.values
+                writer.writerow([tsv_id, rv_ids[0] if len(rv_ids) == 1 else -1,
+                                 'Resource'])
 
     @staticmethod
     def _write_statements(dataset: Dataset, statements_file_path: str):
@@ -300,13 +289,5 @@ class DatasetImporter:
         with open(statements_file_path, 'w') as statements_csv_file:
             writer = csv.writer(statements_csv_file, delimiter=',')
             writer.writerow([':START_ID', ':END_ID', ':TYPE'])
-            with ProgressBar(max_value=len(dataset.statements),
-                             widgets=widgets_with_label(
-                                 'Write statements:')
-                             ) as pb:
-                for _, row in dataset.statements.iterrows():
-                    n = 0
-                    writer.writerow([row['subj'], row['obj'], 'P%d'
-                                     % row['pred']])
-                n += 1
-                pb.update(n)
+            for _, row in dataset.statements.iterrows():
+                writer.writerow([row['subj'], row['obj'], 'P%d' % row['pred']])
