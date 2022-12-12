@@ -27,11 +27,11 @@ class RDF2VecModel(Embedding):
 
         def train(epochs: int, walks: int, path_length: int, with_reverse: bool,
                   skip_type: bool, seed: int):
-            type_index = self.dataset.get_index_for(type_pred)
+            type_index = self.dataset.index().backward[type_pred]
             skip_p = {str(type_index)} if skip_type and type_index != -1 else {}
             # construct a KG for training
             kg = KG(skip_verify=True)
-            for _, stmt in self.dataset.statements.iterrows():
+            for stmt in self.dataset.statement_iterator():
                 if str(stmt[1]) in skip_p:
                     continue
                 sub = Vertex(str(stmt[0]))
@@ -49,8 +49,8 @@ class RDF2VecModel(Embedding):
                 verbose=1
             )
             # train RDF2Vec
-            ent = [str(i) for i in
-                   self.dataset.relevant_entities['key_index'].values]
+            ent = [str(key) for key, _ in
+                   self.dataset.index(check_for_relevance=True).forward.items()]
             embeddings, _ = transformer.fit_transform(kg, ent)
             return pd.DataFrame(embeddings)
 

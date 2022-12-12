@@ -53,3 +53,14 @@ def start_graph_db(dataset: str = 'pokemon', max_memory: int = 4):
 
         while True:
             time.sleep(10)
+
+
+@db.command(name='test')
+def get_db(dataset: str = 'pokemon'):
+    ds = Dataset.get_dataset_for(dataset)
+    if ds is None:
+        print('err: the given dataset "%s" isn\'t supported' % dataset,
+              file=stderr)
+        exit(1)
+
+    ds.write_result_index('entities.tsv.gz')

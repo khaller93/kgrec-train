@@ -1,3 +1,4 @@
+import random
 import time
 
 import numpy as np
@@ -17,50 +18,45 @@ from kgrec.utils.widgets import widgets_with_label
 
 _neighbourhood_query = '''
 OPTIONAL MATCH (x:Resource)-[p]->(y:Resource) 
-WHERE x.tsvID = $in_id
+WHERE x.key = $in_id
 WITH TYPE(p) as prop, collect(y) as do, count(distinct y) as cnt
 UNWIND do as neighbour
-RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 1 as type,
-cnt
+RETURN neighbour.key as neighbourKey, prop, 1 as type, cnt
     
 UNION
     
 OPTIONAL MATCH (y:Resource)-[p]->(x:Resource) 
-WHERE x.tsvID = $in_id
+WHERE x.key = $in_id
 WITH TYPE(p) as prop, collect(y) as di, count(distinct y) as cnt
 UNWIND di as neighbour
-RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 2 as type,
+RETURN neighbour.key as neighbourKey, prop, 2 as type,
 cnt
 
 UNION
     
 OPTIONAL MATCH (x:Resource)-[p]->(a:Resource)<-[pv]-(y:Resource)
-WHERE x.tsvID = $in_id and TYPE(p) = TYPE(pv)
+WHERE x.key = $in_id and TYPE(p) = TYPE(pv)
 WITH TYPE(p) as prop, collect(y) as dio, count(distinct y) as cnt
 UNWIND dio as neighbour
-RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 3 as type,
-cnt
-        
+RETURN neighbour.key as neighbourKey, prop, 3 as type, cnt
+
 UNION
-    
+
 OPTIONAL MATCH (x:Resource)<-[p]-(a:Resource)-[pv]->(y:Resource)
-WHERE x.tsvID = $in_id and TYPE(p) = TYPE(pv)
+WHERE x.key = $in_id and TYPE(p) = TYPE(pv)
 WITH TYPE(p) as prop, collect(y) as dii, count(distinct y) as cnt
 UNWIND dii as neighbour
-RETURN neighbour.tsvID as neighbour, neighbour.rvKey as key, prop, 4 as type,
-cnt
-    
-ORDER BY neighbour, prop, type
+RETURN neighbour.key as neighbourKey, prop, 4 as type, cnt
 '''
 
 _query = '''
 CALL apoc.cypher.run("%s", {in_id: $id}) YIELD value
-RETURN value.neighbour as neighbour, value.key as key, value.prop as prop,
+RETURN value.neighbourKey as neighbourKey, value.prop as prop,
 value.type as type, value.cnt as cnt
-ORDER BY neighbour, prop, type
+ORDER BY neighbourKey, prop, type
 ''' % _neighbourhood_query.replace('\n', ' ')
 
-Neighbour = namedtuple('Neighbour', 'id key props')
+Neighbour = namedtuple('Neighbour', 'id props')
 Property = namedtuple('Property', 'id values')
 
 
@@ -101,10 +97,9 @@ class ResultIterator(Iterable, ABC):
     def __iter__(self):
         record = next(self.r, None)
         while record is not None:
-            neighbour_id = record['neighbour']
-            neighbour_key = record['key']
+            neighbour_id = record['neighbourKey']
             props = []
-            while record is not None and record['neighbour'] == neighbour_id:
+            while record is not None and record['neighbourKey'] == neighbour_id:
                 property_id = record['prop']
                 val_map = {}
                 while record is not None and record['prop'] == property_id:
@@ -113,7 +108,7 @@ class ResultIterator(Iterable, ABC):
                                                        val_map=val_map)
                     props.append(t)
                     record = next(self.r, None)
-            yield Neighbour(neighbour_id, neighbour_key, props)
+            yield Neighbour(neighbour_id, props)
 
 
 class CounterListener:
@@ -154,8 +149,7 @@ class CounterListener:
 class _Payload:
     """ a payload for computing LDSD metric """
 
-    def __init__(self, dataset_name: str, neo4j_details: Neo4JDetails):
-        self.dataset_name = dataset_name
+    def __init__(self, neo4j_details: Neo4JDetails):
         self.neo4j_details = neo4j_details
         self.chunk = None
 
@@ -165,7 +159,7 @@ class _Payload:
                                     auth=self.neo4j_details.auth)
 
     def with_chunk(self, chunk: Sequence[int]):
-        obj = _Payload(self.dataset_name, self.neo4j_details)
+        obj = _Payload(self.neo4j_details)
         obj.chunk = chunk
         return obj
 
@@ -202,22 +196,22 @@ class LDSD(SimilarityMetric):
     @staticmethod
     def _run_computation(payload: _Payload):
         with payload.driver.session() as session:
-            for x_id, key in payload.chunk:
+            for x_id in payload.chunk:
                 neighbours = session.write_transaction(
                     LDSD._collect_neighbours, int(x_id),
                 )
-                pairs = [Pair(key, neighbour.key,
+                pairs = [Pair(x_id, neighbour.id,
                               LDSD._compute_metric_value(neighbour))
-                         for neighbour in neighbours if neighbour.key != -1]
-                pairs.append(Pair(key, key, np.float(0.0)))
+                         for neighbour in neighbours]
+                pairs.append(Pair(x_id, x_id, np.float(0.0)))
                 _pair_queue.put(pairs)
                 with _counter.get_lock():
                     _counter.value += 1
 
     def _compute_pairs(self, queue: Queue):
-        values = [(row['key_index'], int(i)) for i, row in
-                  self.dataset.relevant_entities.iterrows()]
-        ds_name = self.dataset.capitalized_name
+        values = [key for key, _ in
+                  self.dataset.index_iterator(check_for_relevance=True)]
+        random.shuffle(values)
         with pb.ProgressBar(max_value=len(values),
                             widgets=widgets_with_label('Compute LDSD:')
                             ) as progress_bar:
@@ -226,7 +220,7 @@ class LDSD(SimilarityMetric):
                 with Pool(processes=self._num_of_jobs,
                           initializer=LDSD._export_global_vars,
                           initargs=(queue, counter,)) as p:
-                    payload = _Payload(ds_name, self._neo4j_details)
+                    payload = _Payload(self._neo4j_details)
                     params = [payload.with_chunk(chunk) for chunk in
                               np.array_split(values, self._num_of_jobs)]
                     p.map(self._run_computation, params)

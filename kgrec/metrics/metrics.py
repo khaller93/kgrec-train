@@ -98,14 +98,6 @@ class SimilarityMetric:
         """
         raise NotImplementedError('must be implemented by the subclass')
 
-    def _write_index(self, out_dir_path: str):
-        """ writes the entity index of dataset, if its not already existing """
-        index_f = join(out_dir_path, 'entities.tsv.gz')
-        if not exists(index_f):
-            df = self.dataset.relevant_entities.copy()
-            del df['key_index']
-            df.to_csv(index_f, header=False, sep='\t', compression='gzip')
-
     def compute(self, model_dir_path: str):
         """
         starts the computation of the similarity metric for pairs and writes the
@@ -117,4 +109,4 @@ class SimilarityMetric:
         out_dir_path = join(model_dir_path, self.dataset.name)
         with TSVWriter(self.name, out_dir_path, queue):
             self._compute_pairs(queue)
-        self._write_index(out_dir_path)
+        self.dataset.write_result_index(join(out_dir_path, 'entities.tsv.gz'))

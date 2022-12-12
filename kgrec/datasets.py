@@ -1,12 +1,12 @@
 import csv
 import gzip
+from collections import namedtuple
 
-import numpy as np
 import pandas as pd
 
 from os import listdir
 from os.path import join, dirname, exists
-from typing import Sequence
+from typing import Sequence, Mapping, Tuple, Set
 
 
 def _get_data_dir() -> str:
@@ -26,6 +26,37 @@ def _get_dataset_dir(name: str) -> str:
     :return: the path of the dataset directory with the kg.
     """
     return join(_get_data_dir(), name)
+
+
+class IRIFilter:
+    """ a class maintaining a filter for relevant IRIs """
+
+    def apply(self, iri: str) -> bool:
+        """
+        applies this filter, and checks whether given IRI is relevant.
+
+        :param iri: which shall be checked whether an IRI is relevant.
+        :return: `True`, if given IRI is relevant, otherwise `False`.
+        """
+        raise NotImplementedError('must be implemented by subclass')
+
+
+class AllIRIFilter(IRIFilter):
+
+    def apply(self, iri: str) -> bool:
+        return True
+
+
+class SetIRIFilter(IRIFilter):
+
+    def __init__(self, entities: Set[str]):
+        self._entities = entities
+
+    def apply(self, iri: str) -> bool:
+        return iri in self._entities
+
+
+EntityIndex = namedtuple('EntityIndex', 'forward backward')
 
 
 class Dataset:
@@ -63,72 +94,96 @@ class Dataset:
         """
         self.name = name
         self._index = None
-        self._relevant_entities = None
+        self._index_pd = None
+        self._rev_filter = None
         self._statements = None
 
-    @property
-    def capitalized_name(self):
+    def index(self, check_for_relevance: bool = False) -> EntityIndex:
         """
-        gets the capitalized name of this dataset.
+        gets the index (number -> IRI) and reverse index (IRI -> number) of the
+        KG for this dataset.
 
-        :return: capitalized name of this dataset.
-        """
-        return self.name.capitalize()
-
-    @property
-    def index(self) -> pd.DataFrame:
-        """
-        gets the index (number -> IRI) of the KG for this dataset.
-
-        :return: pandas dataframe of the number -> IRI index.
+        :param check_for_relevance: if only index of relevant entities shall be
+        returned.
+        :return: number -> IRI index and IRI -> number reverse index.
         """
         if self._index is None:
-            self._index = pd.read_csv(join(_get_dataset_dir(self.name),
-                                           'index.tsv.gz'),
-                                      names=['index', 'iri'],
-                                      sep='\t', header=None,
-                                      compression='gzip').set_index('index')
-        return self._index
+            self._index = ({}, {})
+            with gzip.open(join(_get_dataset_dir(self.name),
+                                'index.tsv.gz'), 'rt') as f:
+                reader = csv.reader(f, delimiter='\t')
+                for row in reader:
+                    key = int(row[0])
+                    iri = row[1]
+                    self._index[0][key] = iri
+                    self._index[1][iri] = key
+        if not check_for_relevance:
+            return EntityIndex(self._index[0], self._index[1])
+        else:
+            fil = self._relevant_entities_filter
+            return EntityIndex(
+                {k: v for k, v in self._index[0].items() if fil.apply(v)},
+                {k: v for k, v in self._index[1].items() if fil.apply(k)})
 
-    def get_index_for(self, iri: str) -> int:
+    def index_iterator(self, check_for_relevance: bool = False):
         """
-        gets the index number for the specified IRI. -1 will be returned, if
-        the specified iri can't be found.
+        gets an iterator over the index (number -> IRI) of the KG for this
+        dataset.
 
-        :param iri: for which the index shall be fetched.
-        :return: index of the given iri, or -1, if this iri can't be found.
+        :param check_for_relevance: if only index of relevant entities shall be
+        returned.
+        :return: an iterator over the index (number -> IRI).
         """
-        index_list = self.index.index[self.index.index['iri'] == iri].tolist()
-        if len(index_list) == 0:
-            return -1
-        return index_list[0]
+        with gzip.open(join(_get_dataset_dir(self.name),
+                            'index.tsv.gz'), 'rt') as f:
+            reader = csv.reader(f, delimiter='\t')
+            rev_filter = self._relevant_entities_filter
+            for row in reader:
+                if not check_for_relevance or rev_filter.apply(row[1]):
+                    yield int(row[0]), row[1]
 
     @property
-    def relevant_entities(self) -> pd.DataFrame:
+    def _relevant_entities_filter(self) -> IRIFilter:
         """
         gets the relevant entities, which are of interest for fetching vectors
         in the latent space.
 
         :return: pandas dataframe of relevant entities.
         """
-        if self._relevant_entities is None:
-            ent_f = join(_get_dataset_dir(self.name), 'relevant_entities.tsv.gz')
+        if self._rev_filter is None:
+            ent_f = join(_get_dataset_dir(self.name),
+                         'relevant_entities.tsv.gz')
             if exists(ent_f):
-                df = pd.read_csv(ent_f, names=['iri'], sep='\t', header=None,
-                                 compression='gzip')
-                idf = self.index.copy()
-                idf['key_index'] = idf.index
-                df['key_index'] = df[['iri']] \
-                    .merge(idf, on='iri', how='left')['key_index']
-                df = df[df['key_index'].notnull()]
-                df['key_index'] = df['key_index'].astype(np.int)
-                df = df.reset_index(drop=True)
-                self._relevant_entities = df
+                entities = set()
+                with gzip.open(ent_f, 'rt') as f:
+                    reader = csv.reader(f, delimiter='\t')
+                    for row in reader:
+                        entities.add(row[0])
+                self._rev_filter = SetIRIFilter(entities)
             else:
-                df = self.index.copy()
-                df['key_index'] = df.index
-                self._relevant_entities = df
-        return self._relevant_entities
+                self._rev_filter = AllIRIFilter()
+
+        return self._rev_filter
+
+    def write_result_index(self, index_file_path: str,
+                           only_relevant: bool = True):
+        """
+        writes the index to the specified file only considering the relevant
+        entities per default. If the index of all entities shall be written,
+        then set `only_relevant` to `False`.
+
+        :param index_file_path: file path to index file.
+        :param only_relevant: `True` is set per default, and this indicates that
+        only the index of relevant entities is written to file, otherwise set
+        `False`.
+        """
+        index_it = self.index(check_for_relevance=only_relevant) if \
+            self._index is not None else \
+            self.index_iterator(check_for_relevance=only_relevant)
+        with gzip.open(index_file_path, 'wt') as f:
+            writer = csv.writer(f, delimiter='\t')
+            for row in index_it:
+                writer.writerow(row)
 
     @property
     def statements(self) -> pd.DataFrame:
@@ -160,4 +215,6 @@ class Dataset:
     def free(self):
         """ frees the resources loaded for this dataset """
         self._index = None
+        self._index_pd = None
+        self._rev_filter = None
         self._statements = None

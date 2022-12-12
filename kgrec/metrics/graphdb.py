@@ -235,7 +235,7 @@ class DatasetImporter:
         lock_f = Path(self._get_lock_path())
         if 'indexed' not in lock_f.read_text():
             logging.info(
-                'indexing the tsvID property of nodes for faster querying')
+                'indexing the "key" property of nodes for faster querying')
             details = self._neo4j_instance.driver_details
             with GraphDatabase.driver(details.bolt_url,
                                       auth=details.auth) as driver:
@@ -248,7 +248,7 @@ class DatasetImporter:
 
     @staticmethod
     def _index_unique_tsv_id(tx):
-        tx.run('CREATE INDEX IF NOT EXISTS FOR (n:Resource) ON (n.tsvID)')
+        tx.run('CREATE INDEX IF NOT EXISTS FOR (n:Resource) ON (n.key)')
         return None
 
     @staticmethod
@@ -266,12 +266,9 @@ class DatasetImporter:
             dataset.name, entities_file_path)
         with open(entities_file_path, 'w') as entities_csv_file:
             writer = csv.writer(entities_csv_file, delimiter=',')
-            writer.writerow(['tsvID:ID', 'rvKey:int', ':LABEL'])
-            rv_df = dataset.relevant_entities
-            for tsv_id in dataset.index.index.values:
-                rv_ids = rv_df[rv_df['key_index'] == tsv_id].index.values
-                writer.writerow([tsv_id, rv_ids[0] if len(rv_ids) == 1 else -1,
-                                 'Resource'])
+            writer.writerow(['key:ID', ':LABEL'])
+            for key, _ in dataset.index_iterator():
+                writer.writerow([key, 'Resource'])
 
     @staticmethod
     def _write_statements(dataset: Dataset, statements_file_path: str):

@@ -64,8 +64,9 @@ class TransEModel(Embedding):
                 .detach().numpy()
 
             embeddings = []
-            for entity in self.dataset.relevant_entities['key_index'].values:
-                embeddings.append(tensor[kg.entity_to_id[str(entity)]])
+            for entity_key, _ in self.dataset.index_iterator(
+                    check_for_relevance=True):
+                embeddings.append(tensor[kg.entity_to_id[str(entity_key)]])
 
             return pd.DataFrame(embeddings)
 
