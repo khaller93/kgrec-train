@@ -1,3 +1,5 @@
+import logging
+
 import pandas as pd
 import torch
 
@@ -26,11 +28,19 @@ class TransEModel(Embedding):
                   loss_margin: float, num_negs_per_pos: int,
                   optimizer_lr: float, seed: int):
             # construct the KG for training
+            stmt_df = self.dataset.statements
+            logging.info(
+                'constructing triple factory from KG "%s" (size: %d) for '
+                'transE learning', self.dataset.name, len(stmt_df))
             kg = TriplesFactory.from_labeled_triples(
-                triples=self.dataset.statements.applymap(
+                triples=stmt_df.applymap(
                     lambda x: str(x)).values,
                 create_inverse_triples=False)
             # construct the learning model loop
+            logging.info(
+                'constructing transE model for "%s" with: {dim: %d,'
+                'scoring_fct_norm: %d, loss_margin: %f, seed: %d}',
+                self.dataset.name, dim, scoring_fct_norm, loss_margin, seed)
             model = TransE(triples_factory=kg, embedding_dim=dim,
                            scoring_fct_norm=scoring_fct_norm,
                            loss_kwargs=dict(margin=loss_margin),
@@ -39,17 +49,36 @@ class TransEModel(Embedding):
             if torch.has_cuda:
                 _device: torch.device = resolve_device('gpu')
                 model.to(_device)
+                logging.info(
+                    'selected device "CUDA" for transE learning for "%s"',
+                    self.dataset.name)
             elif torch.has_mps:
+                logging.info(
+                    'selected device "Apple Metal GPU" for transE learning'
+                    ' for "%s"',
+                    self.dataset.name)
                 _device: torch.device = resolve_device('mps')
                 model.to(_device)
+            else:
+                logging.info(
+                    'selected device "CPU" for transE learning for "%s"',
+                    self.dataset.name)
 
+            logging.info(
+                'constructing transE training loop for "%s" with: '
+                '{num_negs_per_pos: %d, optimizer_lr: %f}',
+                self.dataset.name, num_negs_per_pos, optimizer_lr)
             training_loop = SLCWATrainingLoop(
                 model=model,
                 triples_factory=kg,
                 negative_sampler_kwargs=dict(num_negs_per_pos=num_negs_per_pos),
                 optimizer_kwargs=dict(lr=optimizer_lr)
             )
+
             # train the model
+            logging.info(
+                'trains transE model for "%s" with: {num_epochs: %d, '
+                'batch_size: %d}', self.dataset.name, epochs, batch_size)
             _ = training_loop.train(
                 triples_factory=kg,
                 num_epochs=epochs,
@@ -57,6 +86,9 @@ class TransEModel(Embedding):
                 batch_size=batch_size,
             )
             # fetch the embeddings
+            logging.info(
+                'fetches and writes transE embeddings for "%s"',
+                self.dataset.name)
             if torch.has_cuda or torch.has_mps:
                 model.cpu()
 
