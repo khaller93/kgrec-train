@@ -1,3 +1,5 @@
+import logging
+
 import pandas as pd
 
 from kgrec.datasets import Dataset
@@ -30,6 +32,8 @@ class RDF2VecModel(Embedding):
             type_index = self.dataset.index().backward[type_pred]
             skip_p = {str(type_index)} if skip_type and type_index != -1 else {}
             # construct a KG for training
+            logging.info('constructing RDF2Vec specific KG for "%s" with: '
+                         '{skip_type: %s}', self.dataset.name, skip_type)
             kg = KG(skip_verify=True)
             for stmt in self.dataset.statement_iterator():
                 if str(stmt[1]) in skip_p:
@@ -40,6 +44,10 @@ class RDF2VecModel(Embedding):
                               vnext=obj)
                 kg.add_walk(sub, pred, obj)
             # construct the transformer
+            logging.info('training RDF2Vec model for KG "%s" with: '
+                         '{max_walks: %d, max_depth: %d, with_reverse: %s, '
+                         'seed: %d, n_jobs: %d}', self.dataset.name, walks,
+                         path_length, with_reverse, seed, num_jobs)
             transformer = RDF2VecTransformer(
                 Word2Vec(epochs=epochs),
                 walkers=[RandomWalker(max_walks=walks, max_depth=path_length,
@@ -49,6 +57,8 @@ class RDF2VecModel(Embedding):
                 verbose=1
             )
             # train RDF2Vec
+            logging.info('writing trained RDF2Vec model for KG "%s"',
+                         self.dataset.name)
             ent = [str(key) for key, _ in
                    self.dataset.index(check_for_relevance=True).forward.items()]
             embeddings, _ = transformer.fit_transform(kg, ent)
