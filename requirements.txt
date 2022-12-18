@@ -7,6 +7,7 @@ gensim>=4.2.0
 aiohttp>=3.8.1
 requests>=2.28.1
 pyrdf2vec>=0.2.3
+sqlitekg2vec>=0.1.0
 pykeen>=1.9.0
 neo4j>=5.3.0
 progressbar2>=4.0.0

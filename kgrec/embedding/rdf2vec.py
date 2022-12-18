@@ -1,11 +1,11 @@
 import logging
 
 import pandas as pd
+import sqlitekg2vec
 
 from kgrec.datasets import Dataset
 from kgrec.embedding.embedding import Embedding
 from multiprocessing import cpu_count
-from pyrdf2vec.graphs import KG, Vertex
 from pyrdf2vec import RDF2VecTransformer
 from pyrdf2vec.embedders import Word2Vec
 from pyrdf2vec.walkers import RandomWalker
@@ -34,34 +34,33 @@ class RDF2VecModel(Embedding):
             # construct a KG for training
             logging.info('constructing RDF2Vec specific KG for "%s" with: '
                          '{skip_type: %s}', self.dataset.name, skip_type)
-            kg = KG(skip_verify=True)
-            for stmt in self.dataset.statement_iterator():
-                if str(stmt[1]) in skip_p:
-                    continue
-                sub = Vertex(str(stmt[0]))
-                obj = Vertex(str(stmt[1]))
-                pred = Vertex(str(stmt[2]), predicate=True, vprev=sub,
-                              vnext=obj)
-                kg.add_walk(sub, pred, obj)
-            # construct the transformer
-            logging.info('training RDF2Vec model for KG "%s" with: '
-                         '{max_walks: %d, max_depth: %d, with_reverse: %s, '
-                         'seed: %d, n_jobs: %d}', self.dataset.name, walks,
-                         path_length, with_reverse, seed, num_jobs)
-            transformer = RDF2VecTransformer(
-                Word2Vec(epochs=epochs),
-                walkers=[RandomWalker(max_walks=walks, max_depth=path_length,
-                                      random_state=seed,
-                                      with_reverse=with_reverse,
-                                      n_jobs=num_jobs)],
-                verbose=1
-            )
-            # train RDF2Vec
-            logging.info('writing trained RDF2Vec model for KG "%s"',
-                         self.dataset.name)
-            ent = [str(key) for key, _ in
-                   self.dataset.index(check_for_relevance=True).forward.items()]
-            embeddings, _ = transformer.fit_transform(kg, ent)
-            return pd.DataFrame(embeddings)
+            with sqlitekg2vec.open_from(
+                    self.dataset.statement_iterator(),
+                    skip_predicates=skip_p,
+            ) as kg:
+                # construct the transformer
+                logging.info('training RDF2Vec model for KG "%s" with: '
+                             '{max_walks: %d, max_depth: %d, with_reverse: %s, '
+                             'seed: %d, n_jobs: %d}', self.dataset.name, walks,
+                             path_length, with_reverse, seed, num_jobs)
+                transformer = RDF2VecTransformer(
+                    Word2Vec(epochs=epochs),
+                    walkers=[RandomWalker(max_walks=walks,
+                                          max_depth=path_length,
+                                          random_state=seed,
+                                          with_reverse=with_reverse,
+                                          n_jobs=num_jobs)],
+                    verbose=1
+                )
+                # train RDF2Vec
+                ent_names = [str(key) for key, _ in self.dataset.index(
+                    check_for_relevance=True).forward.items()]
+                ent = kg.entities(restricted_to=ent_names)
+                embeddings, _ = transformer.fit_transform(kg, ent)
+                logging.info('writing trained RDF2Vec model for KG "%s"',
+                             self.dataset.name)
+                packed_embed = kg.pack(ent, embeddings)
+                return pd.DataFrame([vec for _, vec in packed_embed],
+                                    index=[key for key, _ in packed_embed])
 
         return train(**model_kwargs)
