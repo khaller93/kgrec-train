@@ -24,7 +24,7 @@ class RDF2VecModel(Embedding):
 
     def _perform_training(self, model_kwargs, training_kwargs) -> pd.DataFrame:
         num_jobs = training_kwargs['num_jobs'] \
-            if training_kwargs and 'num_jobs' not in training_kwargs else \
+            if training_kwargs and 'num_jobs' in training_kwargs else \
             cpu_count()
 
         def train(epochs: int, walks: int, path_length: int, with_reverse: bool,
