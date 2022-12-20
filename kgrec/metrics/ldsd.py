@@ -73,14 +73,14 @@ class ResultIterator(Iterable, ABC):
         self.r = iter(r)
 
     @staticmethod
-    def _get_val(n: int) -> np.float:
+    def _get_val(n: int) -> np.float64:
         """
         computes the LDSD value for the number of links.
 
         :param n: the number of links.
         :return: the computed LDSD value for the number of links.
         """
-        return np.float(1.0) / (np.float(1.0) + np.log(n))
+        return np.float64(1.0) / (np.float64(1.0) + np.log(n))
 
     @staticmethod
     def _get_prop_tuple(prop_id: int, val_map: Mapping[int, int]) -> Property:
@@ -179,12 +179,12 @@ class LDSD(SimilarityMetric):
         return [n for n in ResultIterator(r)]
 
     @staticmethod
-    def _compute_metric_value(neighbour: Neighbour) -> np.float:
+    def _compute_metric_value(neighbour: Neighbour) -> np.float64:
         link_values = np.zeros(4)
         for p in neighbour.props:
             for k, v in p.values.items():
                 link_values[k - 1] += v
-        return np.float(1.0) / (np.float(1.0) + np.sum(link_values))
+        return np.float64(1.0) / (np.float64(1.0) + np.sum(link_values))
 
     @staticmethod
     def _export_global_vars(queue: Queue, counter: Value):
@@ -203,7 +203,7 @@ class LDSD(SimilarityMetric):
                 pairs = [Pair(x_id, neighbour.id,
                               LDSD._compute_metric_value(neighbour))
                          for neighbour in neighbours]
-                pairs.append(Pair(x_id, x_id, np.float(0.0)))
+                pairs.append(Pair(x_id, x_id, np.float64(0.0)))
                 _pair_queue.put(pairs)
                 with _counter.get_lock():
                     _counter.value += 1
