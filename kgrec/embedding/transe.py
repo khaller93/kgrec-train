@@ -95,12 +95,14 @@ class TransEModel(Embedding):
             tensor = model.entity_representations[0](indices=None) \
                 .detach().numpy()
 
+            keys = []
             embeddings = []
             for entity_key, _ in self.dataset.index_iterator(
                     check_for_relevance=True):
                 embeddings.append(tensor[kg.entity_to_id[str(entity_key)]])
+                keys.append(entity_key)
 
-            return pd.DataFrame(embeddings)
+            return pd.DataFrame(embeddings, index=keys)
 
         return train(**model_kwargs)
 

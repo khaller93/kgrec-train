@@ -90,8 +90,6 @@ class Embedding:
             makedirs(out_dir)
         index_f = join(out_dir, 'entities.tsv.gz')
         if not exists(index_f):
-            df = self.dataset._relevant_entities_filter.copy()
-            del df['key_index']
-            df.to_csv(index_f, header=False, sep='\t', compression='gzip')
+            self.dataset.write_result_index(index_f, only_relevant=True)
         self.model.to_csv(join(out_dir, '%s.tsv.gz' % self._get_model_name()),
                           header=False, sep='\t', compression='gzip')
