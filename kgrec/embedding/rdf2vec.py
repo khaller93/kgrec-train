@@ -29,8 +29,16 @@ class RDF2VecModel(Embedding):
 
         def train(epochs: int, walks: int, path_length: int, with_reverse: bool,
                   skip_type: bool, seed: int):
-            type_index = self.dataset.index().backward[type_pred]
-            skip_p = {str(type_index)} if skip_type and type_index != -1 else {}
+            backward_index = self.dataset.index().backward
+            skip_p = []
+            if skip_type:
+                if type_pred not in backward_index:
+                    logging.warning(
+                        'it was specified to skip the type predicate, but the '
+                        'dataset "%s" has no such statements',
+                        self.dataset.name)
+                else:
+                    skip_p.append(str(backward_index[type_pred]))
             # construct a KG for training
             logging.info('constructing RDF2Vec specific KG for "%s" with: '
                          '{skip_type: %s}', self.dataset.name, skip_type)
