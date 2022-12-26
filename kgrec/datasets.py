@@ -1,12 +1,16 @@
 import csv
 import gzip
+import logging
+import re
 from collections import namedtuple
 
 import pandas as pd
 
-from os import listdir
+from os import listdir, makedirs
 from os.path import join, dirname, exists
-from typing import Sequence, Mapping, Tuple, Set
+from pykeen.datasets import get_dataset
+from pykeen.triples import TriplesFactory
+from typing import Sequence, Set
 
 
 def _get_data_dir() -> str:
@@ -26,6 +30,161 @@ def _get_dataset_dir(name: str) -> str:
     :return: the path of the dataset directory with the kg.
     """
     return join(_get_data_dir(), name)
+
+
+class _RelevantEntityCollector:
+    """ a class to collect all relevant entities into a set and write the set
+     to a file """
+
+    def __init__(self, relevant_entity_file_path: str):
+        """
+
+        :param relevant_entity_file_path:
+        """
+        self._relevant_entity_file_path = relevant_entity_file_path
+        self._entity_set = set()
+
+    def __enter__(self):
+        self._f = gzip.open(self._relevant_entity_file_path, 'wt')
+        self._writer = csv.writer(self._f, delimiter='\t')
+        return self
+
+    def push(self, entity_name: str):
+        """
+        pushes the entity with the given name to the set of relevant entities.
+        If the same entity has been pushed before, then this method is doing
+        nothing.
+
+        :param entity_name: name of the entity which shall be pushed to the
+        set of relevant entities.
+        """
+        if entity_name not in self._entity_set:
+            self._writer.writerow([entity_name])
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._f.__exit__(exc_type, exc_val, exc_tb)
+        self._entity_set = None
+
+
+class _EntityIDMapper:
+    """ a class to map entities to IDs and write the mapping to a file """
+
+    def __init__(self, index_file_path: str):
+        """
+        creates a new entity ID mapper for mapping entity to ID numbers, and
+        writing the mapping to the specified file path.
+
+        :param index_file_path: path to the file to which the mapping shall be
+        written.
+        """
+        self._index_file_path = index_file_path
+        self._n = 0
+        self._entity_mapping = {}
+
+    def __enter__(self):
+        self._f = gzip.open(self._index_file_path, 'wt')
+        self._writer = csv.writer(self._f, delimiter='\t')
+        return self
+
+    def get_id(self, entity_name: str) -> int:
+        """
+        gets the ID number for the entity with the given name.
+
+        :param entity_name: entity name for which to get the ID number.
+        :return: the ID number for the given entity name.
+        """
+        if entity_name not in self._entity_mapping:
+            self._writer.writerow([self._n, entity_name])
+            self._entity_mapping[entity_name] = self._n
+            self._n += 1
+        return self._entity_mapping[entity_name]
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._f.__exit__(exc_type, exc_val, exc_tb)
+        self._entity_mapping = None
+
+
+class PyKeenDatasetFetcher:
+    """ a class that fetches a PyKeen dataset """
+
+    def __init__(self, dataset_name: str):
+        """
+        creates a new fetcher for the PyKeen dataset with the given name.
+
+        :param dataset_name: name of the PyKeen dataset.
+        """
+        self._dataset_name = dataset_name
+
+    def _write_dataset(self, triples_factories: Sequence[TriplesFactory],
+                       index_file_path: str,
+                       rev_entities_file_path: str,
+                       statements_file_path: str):
+        """
+        writes triples factories of the dataset to disk in proper format.
+
+        :param triples_factories: list of triples factories.
+        :param index_file_path: file path to which the index shall be written.
+        :param rev_entities_file_path: file path to which the relevant entities
+        shall be written.
+        :param statements_file_path: file path to which the statements shall be
+        written.
+        """
+        n = 0
+        with _EntityIDMapper(index_file_path) as mapper:
+            with _RelevantEntityCollector(rev_entities_file_path) as collector:
+                with gzip.open(statements_file_path, 'wt') as stmt_writer:
+                    w = csv.writer(stmt_writer, delimiter='\t')
+                    for tf in triples_factories:
+                        for triple in tf.label_triples(tf.mapped_triples):
+                            w.writerow([mapper.get_id(triple[0]),
+                                        mapper.get_id(triple[1]),
+                                        mapper.get_id(triple[2])])
+                            collector.push(triple[0])
+                            collector.push(triple[2])
+                            n += 1
+        logging.info('Wrote %d statements of PyKeen dataset "%s"'
+                     % (n, self._dataset_name))
+
+    def run(self):
+        """ fetches data for the specified dataset and writes it to disk in the
+        proper format """
+        pykeen_dataset = get_dataset(dataset=self._dataset_name)
+        if pykeen_dataset is not None:
+            dataset_wd = _get_dataset_dir(self.dataset_id)
+            index_file = join(dataset_wd, 'index.tsv.gz')
+            statements_file = join(dataset_wd, 'statements.tsv.gz')
+            rev_entities_file = join(dataset_wd, 'relevant_entities.tsv.gz')
+            if not (exists(index_file) and exists(statements_file)
+                    and exists(rev_entities_file)):
+                logging.info('PyKeen dataset "%s" must be fetched'
+                             % self._dataset_name)
+                if not exists(dataset_wd):
+                    makedirs(dataset_wd)
+                tf_list = [pykeen_dataset.training, pykeen_dataset.testing,
+                           pykeen_dataset.validation]
+                # check if sets are triples factories.
+                for tf in tf_list:
+                    if not isinstance(tf, TriplesFactory):
+                        raise ValueError(
+                            'format of PyKeen dataset "%s" isn\'t supported'
+                            % self._dataset_name)
+                # write to data folder
+                self._write_dataset(tf_list, index_file, rev_entities_file,
+                                    statements_file)
+            else:
+                logging.debug('PyKeen dataset "%s" has already been fetched'
+                              % self._dataset_name)
+        else:
+            logging.info('PyKeen dataset "%s" is unknown' % self._dataset_name)
+
+    @property
+    def dataset_id(self):
+        """
+        gets the unique name of this Pykeen dataset as ID.
+
+        :return: unique name of this dataset.
+        """
+        return 'pykeen_%s' % re.sub(r'\W', '_', self._dataset_name).lower()
 
 
 class IRIFilter:
@@ -82,6 +241,10 @@ class Dataset:
         isn't specified under this name.
         """
         name = name.lower()
+        if name.startswith('pykeen:'):
+            fetcher = PyKeenDatasetFetcher(name.replace('pykeen:', ''))
+            fetcher.run()
+            return Dataset(fetcher.dataset_id)
         if name not in Dataset.supported_datasets():
             return None
         return Dataset(name)
