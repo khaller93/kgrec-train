@@ -53,12 +53,13 @@ def trans_e_cmd(dim: int = 64, scoring_fct_norm: int = 1, epochs: int = 10,
 @app.command(name='transe-hpo', help='tune parameters and train transE '
                                      'embeddings with best found parameters')
 def trans_e_hpo_cmd(trials: int = 10, model_out_directory: str = 'model',
-                    dataset: str = 'pokemon', seed: int = 133):
+                    dataset: str = 'pokemon', batch_size: int = None,
+                    seed: int = 133):
     ds = Dataset.get_dataset_for(dataset)
     if ds is None:
         print('err: the given dataset "%s" isn\'t supported' % dataset,
               file=stderr)
         exit(1)
     trans_e_hpo = TransEHPO(dataset=ds, model_out_directory=model_out_directory)
-    t = trans_e_hpo.hpo(trials=trials, seed=seed)
+    t = trans_e_hpo.hpo(trials=trials, seed=seed, batch_size=batch_size)
     t.write_to(model_out_directory)

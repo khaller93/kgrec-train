@@ -130,7 +130,8 @@ class TransEHPO:
         return join(self.model_out_directory, self.dataset.name,
                     'hpo', 'transE')
 
-    def hpo(self, trials: int, seed: int) -> TransEModel:
+    def hpo(self, trials: int, seed: int,
+            batch_size: int = None) -> TransEModel:
         """
         do hyper-parameterization with the specified number of trials, and then
         computes the TransE model for the best trial.
@@ -138,6 +139,8 @@ class TransEHPO:
         :param trials: the number of attempts for finding a good transE model.
         :param seed: random seed for the split of the KG in train, test and
         validation set.
+        :param batch_size: optionally setting the size of a batch to a specific
+        value. It is `None` by default.
         :return: the TransE model of the best trial.
         """
         # construct the KG for training
@@ -153,6 +156,9 @@ class TransEHPO:
             testing=testing,
             validation=validation,
             model='TransE',
+            training_kwargs={} if batch_size is None else {
+                'batch_size': batch_size
+            },
             model_kwargs=dict(random_seed=seed),
             n_trials=trials,
         )
@@ -164,11 +170,13 @@ class TransEHPO:
         # train transE on best trial parameters
         best_t = result.study.best_trial
         trans_e = TransEModel(self.dataset)
+        bs = best_t.params['training.batch_size'] if batch_size is None else \
+            batch_size
         trans_e.train(model_kwargs=dict(
             dim=best_t.params['model.embedding_dim'],
             scoring_fct_norm=best_t.params['model.scoring_fct_norm'],
             epochs=best_t.params['training.num_epochs'],
-            batch_size=best_t.params['training.batch_size'],
+            batch_size=bs,
             loss_margin=best_t.params['loss.margin'],
             optimizer_lr=best_t.params['optimizer.lr'],
             num_negs_per_pos=best_t.params['negative_sampler.num_negs_per_pos'],
